@@ -1,0 +1,4 @@
+name = "NormalFormIdentification"
+uuid = "feeee282-1c02-4c77-8f08-bd221c3f2f52"
+authors = ["Hans Würfel <git@wuerfel.io>"]
+version = "0.1.0"
