@@ -1,18 +1,17 @@
+#=
+# Droop Identification Example
+=#
 using NormalFormIdentification
 using NetworkDynamics
 using PowerDynamics
 using PowerDynamics.Library
-using LinearAlgebra
-using ForwardDiff
-using FiniteDiff
 using CairoMakie
 using ModelingToolkit
 using ModelingToolkit: t_nounits as t, D_nounits as Dt
-using Symbolics
 
-####
-#### Analyse a droop inverter model
-####
+#=
+## Basic droop inverter model
+=#
 @mtkmodel DroopInverter begin
     @components begin
         terminal = Terminal()
@@ -48,9 +47,13 @@ using Symbolics
     end
 end;
 
+#=
+Build the bus model
+=#
 @named inverter = DroopInverter()
 mtkbus = MTKBus(inverter)
 vm = Bus(mtkbus)
+nothing #hide
 # in order to get the LTI we need to initialize the system
 set_default!(vm, :busbar₊u_r, 1.0)
 set_default!(vm, :busbar₊u_i, 0.0)
@@ -58,11 +61,32 @@ set_default!(vm, :busbar₊i_r, -1.0)
 set_default!(vm, :busbar₊i_i, 0.0)
 initialize_component!(vm)
 
+
+#=
+Now we have a fully initialzied model and can inspectit further
+=#
 print_equations(vm; remove_ns=[:inverter])
+#-
 print_linearization(vm)
+#=
+Next we can generate the bode plots for
+```math
+G(s) = C \, \left(s\,M -A\right)^{-1}\,B
+```
+=#
+bode_plot(get_LTI(vm).G)
+#=
+Also the slighly adapted Gs
+```math
+G_s(s) = s\cdot G(s) = s \cdot C \, \left(s\,M -A\right)^{-1}\,B
+```
+=#
 bode_plot(get_LTI(vm).Gs)
 
 
+#=
+## Droop Inverter behind resistance
+=#
 @mtkmodel DroopInverterResistance begin
     @components begin
         terminal = Terminal()
@@ -102,6 +126,10 @@ bode_plot(get_LTI(vm).Gs)
         u_i ~ V*sin(δ)
     end
 end;
+
+#=
+Now let's build and analyze this model with internal resistance.
+=#
 @named inverter = DroopInverterResistance()
 mtkbus = MTKBus(inverter)
 vm = Bus(mtkbus)
@@ -111,6 +139,23 @@ set_default!(vm, :busbar₊i_r, -1.0)
 set_default!(vm, :busbar₊i_i, 0.0)
 initialize_component!(vm)
 
+#=
+Let's examine the equations and linearization of this model:
+=#
 print_equations(vm; remove_ns=[:inverter])
+#-
 print_linearization(vm)
+#=
+Next we can generate the bode plots for
+```math
+G(s) = C \, \left(s\,M -A\right)^{-1}\,B
+```
+=#
 bode_plot(get_LTI(vm).G)
+#=
+Also the slighly adapted Gs
+```math
+G_s(s) = s\cdot G(s) = s \cdot C \, \left(s\,M -A\right)^{-1}\,B
+```
+=#
+bode_plot(get_LTI(vm).Gs)

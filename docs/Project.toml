@@ -1,0 +1,17 @@
+name = "NormalFormIdentification-Docs"
+
+[deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
+ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
+NetworkDynamics = "22e9dc34-2a0d-11e9-0de0-8588d035468b"
+NormalFormIdentification = "feeee282-1c02-4c77-8f08-bd221c3f2f52"
+PowerDynamics = "cc46b21f-1b17-51c2-b642-af74c3d3a8be"
+Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
+
+[sources]
+NormalFormIdentification = {path = ".."}
