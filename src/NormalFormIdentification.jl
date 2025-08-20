@@ -11,6 +11,8 @@ using Symbolics
 using ModelingToolkit
 using ModelingToolkit: t_nounits as t, D_nounits as Dt
 
+export print_equations, get_LTI, print_linearization, bode_plot
+
 """
     reduced_jacobian_eigenvalues(system)
 
@@ -43,7 +45,7 @@ function bode_plot(G, ωs = 10 .^ range(-2, 2; length=500))
     output, input = 1, 1
     gains = map(s -> 20 * log10(abs(G(s)[output, input])), s_vals)
     phases = map(s -> angle(G(s)[output, input]) * 180 / pi, s_vals)
-    Label(fig[1, 1], L"Bode Plot of $Q \mapsto ln|V|$", fontsize=16, halign=:center)
+    Label(fig[1, 1], L"Bode Plot of $ΔQ \mapsto \mathrm{ln}|V|$", fontsize=16, halign=:center, tellwidth=false)
     ax1 = Axis(fig[2, 1], xlabel="Frequency (rad/s)", ylabel="Gain (dB)", xscale=log10)
     lines!(ax1, ωs, gains, color=:blue, label="Gain")
     ax2 = Axis(fig[3, 1], xlabel="Frequency (rad/s)", ylabel="Phase (deg)", xscale=log10)
@@ -52,7 +54,7 @@ function bode_plot(G, ωs = 10 .^ range(-2, 2; length=500))
     output, input = 2, 1
     gains = map(s -> 20 * log10(abs(G(s)[output, input])), s_vals)
     phases = map(s -> angle(G(s)[output, input]) * 180 / pi, s_vals)
-    Label(fig[4, 1], L"Bode Plot of $Q \mapsto arg(V)$", fontsize=16, halign=:center)
+    Label(fig[4, 1], L"Bode Plot of $ΔQ \mapsto \mathrm{arg}(V)$", fontsize=16, halign=:center, tellwidth=false)
     ax1 = Axis(fig[5, 1], xlabel="Frequency (rad/s)", ylabel="Gain (dB)", xscale=log10)
     lines!(ax1, ωs, gains, color=:blue, label="Gain")
     ax2 = Axis(fig[6, 1], xlabel="Frequency (rad/s)", ylabel="Phase (deg)", xscale=log10)
@@ -62,7 +64,7 @@ function bode_plot(G, ωs = 10 .^ range(-2, 2; length=500))
     gains = map(s -> 20 * log10(abs(G(s)[output, input])), s_vals)
     phases = map(s -> angle(G(s)[output, input]) * 180 / pi, s_vals)
 
-    Label(fig[1, 2], L"Bode Plot of $P \mapsto ln|V|$", fontsize=16, halign=:center)
+    Label(fig[1, 2], L"Bode Plot of $ΔP \mapsto \mathrm{ln}|V|$", fontsize=16, halign=:center, tellwidth=false)
     ax1 = Axis(fig[2, 2], xlabel="Frequency (rad/s)", ylabel="Gain (dB)", xscale=log10)
     lines!(ax1, ωs, gains, color=:blue, label="Gain")
     ax2 = Axis(fig[3, 2], xlabel="Frequency (rad/s)", ylabel="Phase (deg)", xscale=log10)
@@ -71,7 +73,7 @@ function bode_plot(G, ωs = 10 .^ range(-2, 2; length=500))
     output, input = 2, 2
     gains = map(s -> 20 * log10(abs(G(s)[output, input])), s_vals)
     phases = map(s -> angle(G(s)[output, input]) * 180 / pi, s_vals)
-    Label(fig[4, 2], L"Bode Plot of $P \mapsto arg(V)$", fontsize=16, halign=:center)
+    Label(fig[4, 2], L"Bode Plot of $ΔP \mapsto \mathrm{arg}(V)$", fontsize=16, halign=:center, tellwidth=false)
     ax1 = Axis(fig[5, 2], xlabel="Frequency (rad/s)", ylabel="Gain (dB)", xscale=log10)
     lines!(ax1, ωs, gains, color=:blue, label="Gain")
     ax2 = Axis(fig[6, 2], xlabel="Frequency (rad/s)", ylabel="Phase (deg)", xscale=log10)
@@ -123,7 +125,7 @@ function get_LTI(vm::VertexModel)
     @assert maximum(abs.(f_inner(xvec, idqvec) - zeros(dim(vm)))) < 1e-6
     @assert g_inner(xvec) ≈ NetworkDynamics.get_default_or_init.(Ref(vm), outsym(vm))
 
-    # for liniearization, we define 1 arg functions of f around QP0 and f around x0
+    # for liniearization, we define 1 \mathrm{arg} functions of f around QP0 and f around x0
     S0 = Complex(g_inner(xvec)...) * conj(Complex(idqvec...))
     QP0vec = [imag(S0), real(S0)]
 
@@ -191,6 +193,93 @@ function rotational_symmetry(vm::VertexModel)
         printstyled("α = $(lpad(αd, 3))°: ", color=:blue)
         printstyled(repr(res)*"\n")
     end
+end
+
+function print_equations(vm::VertexModel; remove_ns::AbstractVector=[], original_model=nothing)
+    if !isnothing(original_model)
+        def_eqs = full_equations(original_model)
+    end
+
+    subs = Dict(map(eq -> eq.lhs => eq.rhs, vm.metadata[:observed]))
+    feqs = ModelingToolkit.fixpoint_sub(vm.metadata[:equations], subs)
+    geqs = ModelingToolkit.fixpoint_sub(vm.metadata[:outputeqs], subs)
+
+    if !isnothing(original_model)
+        def_str = join(repr.(def_eqs), "\n")
+    end
+    f_str = join(repr.(feqs), "\n")
+    g_str = join(repr.(geqs), "\n")
+
+    remove_ns = string.(remove_ns)
+    replacements = [
+        "Differential(t)" => "Dt",
+        "(t)" => "",
+        (ns*"₊" => "" for ns in remove_ns)...
+    ]
+
+    for r in replacements
+        if !isnothing(original_model)
+            def_str = replace(def_str, r)
+        end
+        f_str = replace(f_str, r)
+        g_str = replace(g_str, r)
+    end
+    if !isnothing(original_model)
+        printstyled("defining equations:\n"; bold=true, color=:blue)
+        println(def_str)
+        println()
+    end
+    printstyled("f equations:\n"; bold=true, color=:blue)
+    println(f_str)
+    println()
+    printstyled("g equations:\n"; bold=true, color=:blue)
+    println(g_str)
+end
+
+function print_linearization(vm)
+    lti = get_LTI(vm)
+    printstyled("Linearzation Point\n"; bold=true, color=:blue)
+    dump_initial_state(vm; obs=false)
+    # printstyled("x-vector:\n")
+    # for s in vm.sym
+    #     println("  ", s, " = ", NetworkDynamics.str_significant(get_initial_state(vm, s), sigdigits=5))
+    # end
+    # printstyled("p-vector:\n")
+    # for s in vm.psym
+    #     println("  ", s, " = ", NetworkDynamics.str_significant(get_initial_state(vm, s), sigdigits=5))
+    # end
+    printstyled("M:\n"; bold=true, color=:blue)
+    show(stdout, MIME"text/plain"(), lti.M)
+    printstyled("\nA:\n"; bold=true, color=:blue)
+    show(stdout, MIME"text/plain"(), lti.A)
+    printstyled("\nB:\n"; bold=true, color=:blue)
+    show(stdout, MIME"text/plain"(), lti.B)
+    printstyled("\nC:\n"; bold=true, color=:blue)
+    show(stdout, MIME"text/plain"(), lti.C)
+    printstyled("\n\nEigenvalue Analysis\n"; bold=true, color=:blue)
+    λ = eigvals(lti.A)
+    for x in λ
+        println("  ", x)
+    end
+    if any(x -> isapprox(x, 0; atol=1e-10), λ)
+        printstyled("  ✓ A has zero mode", color=:green)
+    else
+        printstyled("  × A has no zero mode", color=:red)
+    end
+
+    if lti.M != I
+        printstyled("\nReduced Eigenvalues\n"; bold=true, color=:blue)
+        λred = reduced_jacobian_eigenvalues(lti)
+        for x in λred
+            println("  ", x)
+        end
+        if any(x -> isapprox(x, 0; atol=1e-10), λred)
+            printstyled("  ✓ A reduced has zero mode", color=:green)
+        else
+            printstyled("  × A reduced has no zero mode", color=:red)
+        end
+    end
+    nothing
 end
 
 end # module NormalFormIdentification
