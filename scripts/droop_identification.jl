@@ -52,16 +52,12 @@ end;
 mtkbus = MTKBus(inverter)
 vm = Bus(mtkbus)
 
-@variables
+# M x' = f(x, i)
+# u = f(x)
+vm.metadata[:equations]
+vm.metadata[:outputeqs]
 
-# function _get_i_symbolic(vm)
-#     params = parameters(vm.metadata[:odesystem])
-#     ir_idx = only(findall(s->Symbolics.getname(s) == :busbar₊i_r, params))
-#     ii_idx = only(findall(s->Symbolics.getname(s) == :busbar₊i_i, params))
-#     params[[ir_idx, ii_idx]]
-# end
-# _get_u_symbolic(vm) = [eq.lhs for eq in vm.metadata[:outputeqs]]
-
+vm.metadata[:observed]
 
 function _get_symbolic(vm, names)
     sys = vm.metadata[:odesystem]
@@ -87,28 +83,57 @@ eqs = Symbolics.simplify(
 outeqs = Symbolics.simplify(
     Symbolics.fixpoint_sub(vm.metadata[:outputeqs], obs_subs)
 )
+break
 
+eqs
+
+####
+#### Input transformation
+####
 @parameters P0, Q0
 @variables ΔP(t), ΔQ(t)
 ic = conj( P0+ΔP + im*(Q0+ΔQ) / (u_symbolic[1] + im*u_symbolic[2]) )
 # ic = conj(ΔP + im*(ΔQ)) / (u_symbolic[1] + im*u_symbolic[2])
-i_subs = i_symbolic .=> [simplify(real(ic)), simplify(imag(ic))]
+i_subs = Dict(i_symbolic .=> [simplify(real(ic)), simplify(imag(ic))])
+
+####
+#### Output transformation
+####
+@variables ϑ(t), ν(t)
+complex_phase_eqs = [
+   # ν ~ 0.5*log(u_symbolic[1]^2 + u_symbolic[2]^2),
+   ν ~ log(p_symbolic[5]),
+   # ν ~ atan(u_symbolic[2], u_symbolic[1]),
+   ϑ ~ x_symbolic[1], # delta
+]
+u_subs = Dict(eq.lhs => eq.rhs for eq in outeqs)
+
+####
+#### x -> x0+Δx
+####
+ΔX0vec = map(x_symbolic) do x
+  raw_name = ModelingToolkit.getname(x)
+  x0_name = Symbol(raw_name, "₀")
+  Δx_name = Symbol(replace(string(raw_name), r"₊"=>"₊Δ"))
+  x0 = Symbolics.variable(x0_name)
+  Δx = Symbolics.variable(Δx_name; T=Symbolics.FnType)(t)
+  (x0, Δx)
+end
+X0s = [ΔX0[1] for ΔX0 in ΔX0vec]
+ΔXs = [ΔX0[2] for ΔX0 in ΔX0vec]
+x0_subs = Dict(x_symbolic .=> X0s .+ ΔXs)
 
 # f_eqs = Symbolics.simplify(
 #     Symbolics.fixpoint_sub(eqs, i_subs)
 # )
-f_eq = Symbolics.fixpoint_sub(eqs, i_subs)
+f_eqs = Symbolics.fixpoint_sub(eqs, merge(i_subs, x0_subs))
+f_rhs = [eq.rhs for eq in f_eqs]
 
-@variables ϑ(t), ν(t)
-complex_phase_eqs = [
-   ϑ ~ 0.5*log(u_symbolic[1]^2 + u_symbolic[2]^2),
-   ν ~ atan(u_symbolic[2], u_symbolic[1]),
-]
-u_subs = [eq.lhs => eq.rhs for eq in outeqs]
 # g_eqs = Symbolics.simplify(
 #     Symbolics.fixpoint_sub(complex_phase_eqs, u_subs)
 # )
-g_eqs = Symbolics.fixpoint_sub(complex_phase_eqs, u_subs)
+g_eqs = Symbolics.fixpoint_sub(complex_phase_eqs, merge(u_subs, x0_subs))
+g_rhs = [eq.rhs for eq in g_eqs]
 
 # linearization point
 # f_around_ΔQP0 = Symbolics.simplify(Symbolics.fixpoint_sub(f_eqs, ΔQP0_subs))
@@ -120,11 +145,46 @@ g_eqs = Symbolics.fixpoint_sub(complex_phase_eqs, u_subs)
 # Symbolics.jacobian([eq.rhs for eq in g_eqs], x_symbolic; simplify=true)
 
 
-A = Symbolics.jacobian([eq.rhs for eq in f_eqs], x_symbolic; simplify=false)
-B = Symbolics.jacobian([eq.rhs for eq in f_eqs], [ΔQ, ΔP]; simplify=false)
-C = Symbolics.jacobian([eq.rhs for eq in g_eqs], x_symbolic; simplify=false)
+A = Symbolics.jacobian(f_rhs, ΔXs; simplify=false)
+B = Symbolics.jacobian(f_rhs, [ΔQ, ΔP]; simplify=false)
+C = Symbolics.jacobian(g_rhs, ΔXs; simplify=false)
+
+steadystate_subs = [
+    ΔQ => 0,
+    ΔP => 0,
+    (ΔXs .=> 0)...
+]
+
+A = Symbolics.fixpoint_sub(A, steadystate_subs) |> Symbolics.simplify
+B = Symbolics.fixpoint_sub(B, steadystate_subs) |> Symbolics.simplify
+C = Symbolics.fixpoint_sub(C, steadystate_subs) |> Symbolics.simplify
 
 Symbolics.get_variables.(A)
+
+initialize_subs = [
+    X0s[1] => atan(u_symbolic[2], u_symbolic[1]), # delta
+    X0s[2] => p_symbolic[4], # Pfilt
+    X0s[3] => p_symbolic[2], # Qfilt
+]
+A = Symbolics.fixpoint_sub(A, initialize_subs) |> Symbolics.simplify
+B = Symbolics.fixpoint_sub(B, initialize_subs) |> Symbolics.simplify
+C = Symbolics.fixpoint_sub(C, initialize_subs) |> Symbolics.simplify
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # p_subs = []
 # ΔQP0_subs = [ΔQ => 0, ΔP => 0]
@@ -161,6 +221,25 @@ steadystate_subs = [
 Symbolics.simplify(Symbolics.fixpoint_sub(A, steadystate_subs), expand=true)
 Symbolics.simplify(Symbolics.fixpoint_sub(B, steadystate_subs), expand=true)
 Symbolics.simplify(Symbolics.fixpoint_sub(C, steadystate_subs), expand=true)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -274,7 +353,8 @@ unsolvable_identity(x) = x
         Kp=1.0, [description="Wirkleistungs-Droop-Koeffizient"]
         Kq=1.0, [description="Blindleistungs-Droop-Koeffizient"]
         τ = 1.0, [description="Zeitkonstante des Leistungsfilters"]
-        R = 1
+        R = 1, [description="Widerstand der internen Impedanz", guess=1]
+        C = 1, [description="Kapazität der internen Impedanz", guess=1]
     end
     @variables begin
         Pmeas(t), [description="Wirkleistungsmessung", guess=1]
@@ -286,10 +366,16 @@ unsolvable_identity(x) = x
         V(t)=1, [description="Spannungsbetrag"]
         u_r(t), [description="Spannung intern", guess=1]
         u_i(t), [description="Spannung intern", guess=0]
+        i_r(t), [description="Strom intern", guess=1]
+        i_i(t), [description="Strom intern", guess=0]
     end
     @equations begin
-        terminal.i_r ~ (u_r - terminal.u_r) / R
-        terminal.i_i ~ (u_i - terminal.u_i) / R
+        i_r ~ (u_r - terminal.u_r) / R
+        i_i ~ (u_i - terminal.u_i) / R
+        Dt(u_r) ~  ω0*u_i + 1/C * (terminal.i_r + i_r)
+        Dt(u_i) ~ -ω0*u_r + 1/C * (terminal.i_i + i_i)
+
+
         Pmeas ~  u_r*terminal.i_r + u_i*terminal.i_i
         Qmeas ~ -u_r*terminal.i_i + u_i*terminal.i_r
         τ * Dt(Pfilt) ~ Pmeas - Pfilt
