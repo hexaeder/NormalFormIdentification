@@ -11,6 +11,7 @@ ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
 NetworkDynamics = "22e9dc34-2a0d-11e9-0de0-8588d035468b"
 NormalFormIdentification = "feeee282-1c02-4c77-8f08-bd221c3f2f52"
 PowerDynamics = "cc46b21f-1b17-51c2-b642-af74c3d3a8be"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
 
 [sources]
