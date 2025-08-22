@@ -12,6 +12,7 @@ using ModelingToolkit
 using ModelingToolkit: t_nounits as t, D_nounits as Dt
 
 export print_equations, get_LTI, print_linearization, bode_plot
+export rotational_symmetry
 
 """
     reduced_jacobian_eigenvalues(system)
@@ -167,31 +168,67 @@ function get_LTI(vm::VertexModel)
     (; M, A, B, C, G, Gs)
 end
 
-function rotational_symmetry(vm::VertexModel)
-    error("Not fully implemented!")
-    vm = copy(vm) # create a copy first
-    res = init_residual(vm)
-    if res > 1e-6
+function rotational_symmetry(vm::VertexModel; covariant=[])
+    _vm = copy(vm) # create a copy first
+    res = init_residual(_vm)
+    if isnan(res) || res > 1e-6
         error("The system is not initialized in steady state, cannot perform rotational symmetry identification.")
     end
 
+    residuals = Float64[]
     for αd in 1:360
         local α = rad2deg(αd)
         D = [cos(α) -sin(α); sin(α) cos(α)]
+
+        # input / output transformation
         u = [get_initial_state(vm, :busbar₊u_r), get_initial_state(vm, :busbar₊u_i)]
         i = [get_initial_state(vm, :busbar₊i_r), get_initial_state(vm, :busbar₊i_i)]
-        δ = get_initial_state(vm, :ctrld_gen₊machine₊δ)
         unew = D * u
         inew = D * i
-        δnew = δ + α
         set_default!(_vm, :busbar₊u_r, unew[1])
         set_default!(_vm, :busbar₊u_i, unew[2])
         set_default!(_vm, :busbar₊i_r, inew[1])
         set_default!(_vm, :busbar₊i_i, inew[2])
-        set_default!(_vm, :ctrld_gen₊machine₊δ, δnew)
-        res = init_residual(_vm; recalc=true)
-        printstyled("α = $(lpad(αd, 3))°: ", color=:blue)
-        printstyled(repr(res)*"\n")
+
+        # covariatn variable transformation
+        for sym in covariant
+            if sym isa NTuple{2,Symbol}
+                phasorlike = [get_initial_state(vm, sym[1]), get_initial_state(vm, sym[2])]
+                phasorlike_new = D * phasorlike
+                set_default!(_vm, sym[1], phasorlike_new[1])
+                set_default!(_vm, sym[2], phasorlike_new[2])
+            elseif sym isa Symbol
+                δlike = get_initial_state(vm, sym)
+                δlike_new = δlike + α
+                set_default!(_vm, sym, δlike_new)
+            else
+                error()
+            end
+        end
+
+        res = init_residual(_vm)
+        push!(residuals, res)
+        # printstyled("α = $(lpad(αd, 3))°: ", color=:blue)
+        # printstyled(repr(res)*"\n")
+    end
+
+    printstyled("Performed rotational symmetry analysis $(length(residuals)) angles.\n"; color=:blue)
+    println(" - input current and output voltage was rotated and the residual of the steady state was calculated for each angle.")
+    cov_single = filter(s -> s isa Symbol, covariant)
+    cov_pair   = filter(s -> s isa NTuple{2,Symbol}, covariant)
+    if !isempty(cov_single)
+        println(" - assume covariant variables $(join(cov_single, ", ")) transform like δ → δ + Δδ")
+    end
+    if !isempty(cov_pair)
+        println(" - assume covariant variables pairs $(join(cov_pair, ", ")) transform like (u_r, u_i) → D(Δδ).(u_r, u_i)")
+    end
+
+    extr = extrema(residuals)
+    TOL = 1e-6
+    if maximum(abs.(extr)) < TOL
+        printstyled("✓ All residuals are below $TOL"; color=:green)
+    else
+        printstyled("× Some residuals are above $TOL: extrema $(extr)"; color=:red)
     end
 end
 
