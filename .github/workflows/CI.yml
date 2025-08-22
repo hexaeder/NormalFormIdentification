@@ -50,7 +50,7 @@ jobs:
             ${{ steps.julia-cache.outputs.cache-paths }}
           key: ${{ steps.julia-cache.outputs.cache-key }}
   docs:
-    name: Documentation
+    name: Documentation (FIXED ND BRANCH)
     runs-on: ubuntu-latest
     permissions:
       actions: write # needed to allow julia-actions/cache to proactively delete old caches that it has created
@@ -69,6 +69,7 @@ jobs:
         run: |
           using Pkg
           Pkg.develop(PackageSpec(path=pwd()))
+          pkg"add NetworkDynamics#hw/fix_unused"
           Pkg.instantiate()
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-docdeploy@v1
