@@ -165,7 +165,10 @@ function get_LTI(vm::VertexModel)
     G = s -> C * inv(s*M - A) * B
     Gs = s -> s * C * inv(s*M - A) * B
 
-    (; M, A, B, C, G, Gs)
+    G_pinv = s -> C * pinv(s*M - A) * B
+    Gs_pinv = s -> s * C * pinv(s*M - A) * B
+
+    (; M, A, B, C, G, Gs, G_pinv, Gs_pinv)
 end
 
 function rotational_symmetry(vm::VertexModel; covariant=[])

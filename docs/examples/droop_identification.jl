@@ -86,6 +86,10 @@ bode_plot(get_LTI(vm).Gs)
 
 #=
 ## Droop Inverter behind resistance
+```@raw html
+<details>
+<summary>Click to expand, but maybe ignore this section for now...</summary>
+```
 =#
 @mtkmodel DroopInverterResistance begin
     @components begin
@@ -146,22 +150,28 @@ print_equations(vm; remove_ns=[:inverter])
 #-
 print_linearization(vm)
 #=
+!!! note "Pseudo Inverse"
+    For this model we use the pinv instead of inv for the calculation of G and Gs!
+
 Next we can generate the bode plots for
 ```math
-G(s) = C \, \left(s\,M -A\right)^{-1}\,B
+G(s) = C \, \left(s\,M -A\right)^{\dagger}\,B
 ```
 =#
-bode_plot(get_LTI(vm).G)
+bode_plot(get_LTI(vm).G_pinv)
 #=
 Also the slighly adapted Gs
 ```math
-G_s(s) = s\cdot G(s) = s \cdot C \, \left(s\,M -A\right)^{-1}\,B
+G_s(s) = s\cdot G(s) = s \cdot C \, \left(s\,M -A\right)^{\dagger}\,B
 ```
 =#
-bode_plot(get_LTI(vm).Gs)
+bode_plot(get_LTI(vm).Gs_pinv)
 
 
 #=
+```@raw html
+</details>
+```
 ## Droop with Resistance over Capacitance
 This model is very similar to the last one, but has an explicit DGL for the voltage and thus no constraints.
 =#
@@ -196,7 +206,7 @@ This model is very similar to the last one, but has an explicit DGL for the volt
     @equations begin
         i_r ~ (u_r - terminal.u_r) / R
         i_i ~ (u_i - terminal.u_i) / R
-        # the factor of 1 is normally ω0 but depends on the units of C
+        ## the factor of 1 is normally ω0 but depends on the units of C
         Dt(terminal.u_r) ~  1*terminal.u_i + 1/C * (i_r + terminal.i_r)
         Dt(terminal.u_i) ~ -1*terminal.u_r + 1/C * (i_i + terminal.i_i)
 
