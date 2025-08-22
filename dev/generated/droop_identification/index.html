@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Droop Identification · NormalFormIdentification.jl</title><meta name="title" content="Droop Identification · NormalFormIdentification.jl"/><meta property="og:title" content="Droop Identification · NormalFormIdentification.jl"/><meta property="twitter:title" content="Droop Identification · NormalFormIdentification.jl"/><meta name="description" content="Documentation for NormalFormIdentification.jl."/><meta property="og:description" content="Documentation for NormalFormIdentification.jl."/><meta property="twitter:description" content="Documentation for NormalFormIdentification.jl."/><meta property="og:url" content="https://hexaeder.github.io/NormalFormIdentification.jl/generated/droop_identification/"/><meta property="twitter:url" content="https://hexaeder.github.io/NormalFormIdentification.jl/generated/droop_identification/"/><link rel="canonical" href="https://hexaeder.github.io/NormalFormIdentification.jl/generated/droop_identification/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NormalFormIdentification.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Tutorials</span><ul><li class="is-active"><a class="tocitem" href>Droop Identification</a><ul class="internal"><li><a class="tocitem" href="#Basic-droop-inverter-model"><span>Basic droop inverter model</span></a></li><li><a class="tocitem" href="#Droop-Inverter-behind-resistance"><span>Droop Inverter behind resistance</span></a></li></ul></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Droop Identification</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Droop Identification</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/hexaeder/NormalFormIdentification" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/hexaeder/NormalFormIdentification/blob/main/docs/examples/droop_identification.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Droop-Identification-Example"><a class="docs-heading-anchor" href="#Droop-Identification-Example">Droop Identification Example</a><a id="Droop-Identification-Example-1"></a><a class="docs-heading-anchor-permalink" href="#Droop-Identification-Example" title="Permalink"></a></h1><pre><code class="language-julia hljs">using NormalFormIdentification
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Droop Identification · NormalFormIdentification.jl</title><meta name="title" content="Droop Identification · NormalFormIdentification.jl"/><meta property="og:title" content="Droop Identification · NormalFormIdentification.jl"/><meta property="twitter:title" content="Droop Identification · NormalFormIdentification.jl"/><meta name="description" content="Documentation for NormalFormIdentification.jl."/><meta property="og:description" content="Documentation for NormalFormIdentification.jl."/><meta property="twitter:description" content="Documentation for NormalFormIdentification.jl."/><meta property="og:url" content="https://hexaeder.github.io/NormalFormIdentification.jl/generated/droop_identification/"/><meta property="twitter:url" content="https://hexaeder.github.io/NormalFormIdentification.jl/generated/droop_identification/"/><link rel="canonical" href="https://hexaeder.github.io/NormalFormIdentification.jl/generated/droop_identification/"/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">NormalFormIdentification.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Tutorials</span><ul><li class="is-active"><a class="tocitem" href>Droop Identification</a><ul class="internal"><li><a class="tocitem" href="#Basic-droop-inverter-model"><span>Basic droop inverter model</span></a></li><li><a class="tocitem" href="#Droop-Inverter-behind-resistance"><span>Droop Inverter behind resistance</span></a></li><li><a class="tocitem" href="#Droop-with-Resistance-over-Capacitance"><span>Droop with Resistance over Capacitance</span></a></li></ul></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Droop Identification</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Droop Identification</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/hexaeder/NormalFormIdentification" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/hexaeder/NormalFormIdentification/blob/main/docs/examples/droop_identification.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Droop-Identification-Example"><a class="docs-heading-anchor" href="#Droop-Identification-Example">Droop Identification Example</a><a id="Droop-Identification-Example-1"></a><a class="docs-heading-anchor-permalink" href="#Droop-Identification-Example" title="Permalink"></a></h1><pre><code class="language-julia hljs">using NormalFormIdentification
 using NetworkDynamics
 using PowerDynamics
 using PowerDynamics.Library
@@ -73,7 +73,7 @@ busbar₊u_i ~ (Vset + Kq*(Qset - Qfilt))*sin(δ)</code></pre><pre><code class="
   inverter₊Qset         = <span class="sgr33">-1.8589e-17</span> (guess  0)
   inverter₊Vset         = <span class="sgr33"> 1</span>          (guess  1)
   inverter₊τ            = <span class="sgr34"> 1</span>
-  <span class="sgr90">inverter₊ω₀ (unused)</span>  = <span class="sgr34"> 0</span>
+  inverter₊ω₀           = <span class="sgr34"> 0</span>
 <span class="sgr34"><span class="sgr1">M:</span></span>
 LinearAlgebra.UniformScaling{Bool}
 true*I
@@ -96,7 +96,8 @@ true*I
   -1.0
   -1.0
   -0.0
-<span class="sgr32">  ✓ A has zero mode</span></code></pre><p>Next we can generate the bode plots for</p><p class="math-container">\[G(s) = C \, \left(s\,M -A\right)^{-1}\,B\]</p><pre><code class="language-julia hljs">bode_plot(get_LTI(vm).G)</code></pre><img src="e8015aba.png" alt="Example block output"/><p>Also the slighly adapted Gs</p><p class="math-container">\[G_s(s) = s\cdot G(s) = s \cdot C \, \left(s\,M -A\right)^{-1}\,B\]</p><pre><code class="language-julia hljs">bode_plot(get_LTI(vm).Gs)</code></pre><img src="1d55f618.png" alt="Example block output"/><h2 id="Droop-Inverter-behind-resistance"><a class="docs-heading-anchor" href="#Droop-Inverter-behind-resistance">Droop Inverter behind resistance</a><a id="Droop-Inverter-behind-resistance-1"></a><a class="docs-heading-anchor-permalink" href="#Droop-Inverter-behind-resistance" title="Permalink"></a></h2><pre><code class="language-julia hljs">@mtkmodel DroopInverterResistance begin
+<span class="sgr32">  ✓ A has zero mode</span></code></pre><p>Next we can generate the bode plots for</p><p class="math-container">\[G(s) = C \, \left(s\,M -A\right)^{-1}\,B\]</p><pre><code class="language-julia hljs">bode_plot(get_LTI(vm).G)</code></pre><img src="e8015aba.png" alt="Example block output"/><p>Also the slighly adapted Gs</p><p class="math-container">\[G_s(s) = s\cdot G(s) = s \cdot C \, \left(s\,M -A\right)^{-1}\,B\]</p><pre><code class="language-julia hljs">bode_plot(get_LTI(vm).Gs)</code></pre><img src="1d55f618.png" alt="Example block output"/><h2 id="Droop-Inverter-behind-resistance"><a class="docs-heading-anchor" href="#Droop-Inverter-behind-resistance">Droop Inverter behind resistance</a><a id="Droop-Inverter-behind-resistance-1"></a><a class="docs-heading-anchor-permalink" href="#Droop-Inverter-behind-resistance" title="Permalink"></a></h2><details>
+<summary>Click to expand, but maybe ignore this section for now...</summary><pre><code class="language-julia hljs">@mtkmodel DroopInverterResistance begin
     @components begin
         terminal = Terminal()
     end
@@ -176,7 +177,7 @@ busbar₊u_i ~ busbar₊u_i</code></pre><pre><code class="language-julia hljs">p
   inverter₊R            = <span class="sgr34"> 1</span>          (guess  1)
   inverter₊Vset         = <span class="sgr33"> 1.5</span>        (guess  1)
   inverter₊τ            = <span class="sgr34"> 1</span>
-  <span class="sgr90">inverter₊ω₀ (unused)</span>  = <span class="sgr34"> 0</span>
+  inverter₊ω₀           = <span class="sgr34"> 0</span>
 <span class="sgr34"><span class="sgr1">M:</span></span>
 5×5 LinearAlgebra.Diagonal{Int64, Vector{Int64}}:
  1  ⋅  ⋅  ⋅  ⋅
@@ -214,4 +215,125 @@ busbar₊u_i ~ busbar₊u_i</code></pre><pre><code class="language-julia hljs">p
   -1.0000000000000004 - 2.5809568279517847e-8im
   -1.0000000000000004 + 2.5809568279517847e-8im
   8.881784197001237e-16 + 0.0im
-<span class="sgr32">  ✓ A reduced has zero mode</span></code></pre><p>Next we can generate the bode plots for</p><p class="math-container">\[G(s) = C \, \left(s\,M -A\right)^{-1}\,B\]</p><pre><code class="language-julia hljs">bode_plot(get_LTI(vm).G)</code></pre><img src="68bf7d67.png" alt="Example block output"/><p>Also the slighly adapted Gs</p><p class="math-container">\[G_s(s) = s\cdot G(s) = s \cdot C \, \left(s\,M -A\right)^{-1}\,B\]</p><pre><code class="language-julia hljs">bode_plot(get_LTI(vm).Gs)</code></pre><img src="5e8830d9.png" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Home</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Wednesday 20 August 2025 11:12">Wednesday 20 August 2025</span>. Using Julia version 1.11.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+<span class="sgr32">  ✓ A reduced has zero mode</span></code></pre><div class="admonition is-info" id="Pseudo-Inverse-144bb2e903f26f4e"><header class="admonition-header">Pseudo Inverse<a class="admonition-anchor" href="#Pseudo-Inverse-144bb2e903f26f4e" title="Permalink"></a></header><div class="admonition-body"><p>For this model we use the pinv instead of inv for the calculation of G and Gs!</p></div></div><p>Next we can generate the bode plots for</p><p class="math-container">\[G(s) = C \, \left(s\,M -A\right)^{\dagger}\,B\]</p><pre><code class="language-julia hljs">bode_plot(get_LTI(vm).G_pinv)</code></pre><img src="d5fc2259.png" alt="Example block output"/><p>Also the slighly adapted Gs</p><p class="math-container">\[G_s(s) = s\cdot G(s) = s \cdot C \, \left(s\,M -A\right)^{\dagger}\,B\]</p><pre><code class="language-julia hljs">bode_plot(get_LTI(vm).Gs_pinv)</code></pre><img src="721ab0fb.png" alt="Example block output"/></details><h2 id="Droop-with-Resistance-over-Capacitance"><a class="docs-heading-anchor" href="#Droop-with-Resistance-over-Capacitance">Droop with Resistance over Capacitance</a><a id="Droop-with-Resistance-over-Capacitance-1"></a><a class="docs-heading-anchor-permalink" href="#Droop-with-Resistance-over-Capacitance" title="Permalink"></a></h2><p>This model is very similar to the last one, but has an explicit DGL for the voltage and thus no constraints.</p><pre><code class="language-julia hljs">@mtkmodel DroopInverterCapacitance begin
+    @components begin
+        terminal = Terminal()
+    end
+    @parameters begin
+        Pset, [description=&quot;Wirkleistungs-Sollwert&quot;, guess=1]
+        Qset, [description=&quot;Blindleistungs-Sollwert&quot;, guess=0]
+        Vset, [description=&quot;Spannungs-Sollwert&quot;, guess=1]
+        ω₀=0, [description=&quot;Nennfrequenz&quot;]
+        Kp=1.0, [description=&quot;Wirkleistungs-Droop-Koeffizient&quot;]
+        Kq=1.0, [description=&quot;Blindleistungs-Droop-Koeffizient&quot;]
+        τ = 1.0, [description=&quot;Zeitkonstante des Leistungsfilters&quot;]
+        R = 1, [description=&quot;Widerstand der internen Impedanz&quot;, guess=1]
+        C = 1, [description=&quot;Kapazität der internen Impedanz&quot;, guess=1]
+    end
+    @variables begin
+        Pmeas(t), [description=&quot;Wirkleistungsmessung&quot;, guess=1]
+        Qmeas(t), [description=&quot;Blindleistungsmessung&quot;, guess=0]
+        Pfilt(t), [description=&quot;Gefilterte Wirkleistung&quot;, guess=1]
+        Qfilt(t), [description=&quot;Gefilterte Blindleistung&quot;, guess=1]
+        ω(t), [description=&quot;Frequenz&quot;]
+        δ(t), [description=&quot;Spannungswinkel&quot;, guess=0]
+        V(t), [description=&quot;Spannungsbetrag&quot;]
+        u_r(t), [description=&quot;Spannung intern&quot;, guess=1]
+        u_i(t), [description=&quot;Spannung intern&quot;, guess=0]
+        i_r(t), [description=&quot;Strom intern&quot;, guess=0]
+        i_i(t), [description=&quot;Strom intern&quot;, guess=0]
+    end
+    @equations begin
+        i_r ~ (u_r - terminal.u_r) / R
+        i_i ~ (u_i - terminal.u_i) / R
+        # the factor of 1 is normally ω0 but depends on the units of C
+        Dt(terminal.u_r) ~  1*terminal.u_i + 1/C * (i_r + terminal.i_r)
+        Dt(terminal.u_i) ~ -1*terminal.u_r + 1/C * (i_i + terminal.i_i)
+
+        Pmeas ~  u_r*terminal.i_r + u_i*terminal.i_i
+        Qmeas ~ -u_r*terminal.i_i + u_i*terminal.i_r
+        τ * Dt(Pfilt) ~ Pmeas - Pfilt
+        τ * Dt(Qfilt) ~ Qmeas - Qfilt
+        ω ~ ω₀ - Kp * (Pfilt - Pset) ## Frequenz senken, wenn P höher als Sollwert
+        V ~ Vset - Kq * (Qfilt - Qset) ## Spannung senken, wenn Q höher als Sollwert
+        Dt(δ) ~ ω - ω₀
+        u_r ~ V*cos(δ)
+        u_i ~ V*sin(δ)
+    end
+end;
+
+@named inverter = DroopInverterCapacitance()
+mtkbus = MTKBus(inverter)
+vm = Bus(mtkbus)
+set_default!(vm, :busbar₊u_r, 1.0)
+set_default!(vm, :busbar₊u_i, 0.0)
+set_default!(vm, :busbar₊i_r, -1.0)
+set_default!(vm, :busbar₊i_i, 0.0)
+initialize_component!(vm)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NetworkDynamics.VertexModel <span class="sgr1">:bus</span> <span class="sgr94">NetworkDynamics.PureStateMap()</span>
+ ├─ 2 inputs:  [busbar₊i_r=-1, busbar₊i_i=0]
+ ├─ 5 states:  [inverter₊δ=1.5708, inverter₊Qfilt=1, inverter₊Pfilt=1.7658e-15, busbar₊u_i=0, busbar₊u_r=1]
+ ├─ 2 outputs: [busbar₊u_r=1, busbar₊u_i=0]
+ └─ 9 params:  [inverter₊Pset=2.0469e-15, inverter₊Qset=0.5, inverter₊Vset=1.5, inverter₊ω₀=0, inverter₊Kp=1, inverter₊Kq=1, inverter₊τ=1, inverter₊R=1, inverter₊C=1]</code></pre><p>First, we check the rotational symmetry of the steadystate. I.e. we rotate inputs and ouputs and also the covariant state <span>$\delta$</span> and check if the steadystate is still a steady state under thos conditions.</p><pre><code class="language-julia hljs">rotational_symmetry(vm; covariant=[:inverter₊δ])</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr34">Performed rotational symmetry analysis 360 angles.</span>
+ - input current and output voltage was rotated and the residual of the steady state was calculated for each angle.
+ - assume covariant variables inverter₊δ transform like δ → δ + Δδ
+<span class="sgr32">✓ All residuals are below 1.0e-6</span></code></pre><p>Let&#39;s examine the equations and linearization of this model:</p><pre><code class="language-julia hljs">print_equations(vm; remove_ns=[:inverter])</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr34"><span class="sgr1">f equations:</span></span>
+Dt(δ) ~ Kp*(Pset - Pfilt)
+Dt(Qfilt) ~ (Qfilt + (Vset + Kq*(Qset - Qfilt))*sin(δ)*busbar₊i_r - (Vset + Kq*(Qset - Qfilt))*cos(δ)*busbar₊i_i) / (-τ)
+Dt(Pfilt) ~ (Pfilt + (Vset + Kq*(Qset - Qfilt))*sin(δ)*busbar₊i_i + (Vset + Kq*(Qset - Qfilt))*busbar₊i_r*cos(δ)) / (-τ)
+Dt(busbar₊u_i) ~ -busbar₊u_r + ((-busbar₊u_i + (Vset + Kq*(Qset - Qfilt))*sin(δ)) / R - busbar₊i_i) / C
+Dt(busbar₊u_r) ~ (-busbar₊i_r + (-busbar₊u_r + (Vset + Kq*(Qset - Qfilt))*cos(δ)) / R) / C + busbar₊u_i
+
+<span class="sgr34"><span class="sgr1">g equations:</span></span>
+busbar₊u_r ~ busbar₊u_r
+busbar₊u_i ~ busbar₊u_i</code></pre><pre><code class="language-julia hljs">print_linearization(vm)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr34"><span class="sgr1">Linearzation Point</span></span>
+<span class="sgr1">Inputs:</span>
+  busbar₊i_i            = <span class="sgr34"> 0</span>
+  busbar₊i_r            = <span class="sgr34">-1</span>
+<span class="sgr1">States:</span>
+  busbar₊u_i            = <span class="sgr34"> 0</span>
+  busbar₊u_r            = <span class="sgr34"> 1</span>
+  inverter₊Pfilt        = <span class="sgr33"> 1.7658e-15</span> (guess  1)
+  inverter₊Qfilt        = <span class="sgr33"> 1</span>          (guess  1)
+  inverter₊δ            = <span class="sgr33"> 1.5708</span>     (guess  0)
+<span class="sgr1">Outputs:</span>
+  busbar₊u_i            = <span class="sgr34"> 0</span>
+  busbar₊u_r            = <span class="sgr34"> 1</span>
+<span class="sgr1">Parameters:</span>
+  inverter₊C            = <span class="sgr34"> 1</span>          (guess  1)
+  inverter₊Kp           = <span class="sgr34"> 1</span>
+  inverter₊Kq           = <span class="sgr34"> 1</span>
+  inverter₊Pset         = <span class="sgr33"> 2.0469e-15</span> (guess  1)
+  inverter₊Qset         = <span class="sgr33"> 0.5</span>        (guess  0)
+  inverter₊R            = <span class="sgr34"> 1</span>          (guess  1)
+  inverter₊Vset         = <span class="sgr33"> 1.5</span>        (guess  1)
+  inverter₊τ            = <span class="sgr34"> 1</span>
+  inverter₊ω₀           = <span class="sgr34"> 0</span>
+<span class="sgr34"><span class="sgr1">M:</span></span>
+LinearAlgebra.UniformScaling{Bool}
+true*I
+<span class="sgr34"><span class="sgr1">A:</span></span>
+5×5 Matrix{Float64}:
+ -0.0          -0.0          -1.0  -0.0          -0.0
+  9.49411e-16  -2.0          -0.0  -9.49411e-16  -1.0
+ -1.0          -9.49411e-16  -1.0   1.0          -9.49411e-16
+  9.49411e-16  -1.0           0.0   0.0          -1.0
+ -1.0          -9.49411e-16   0.0   1.0          -2.0
+<span class="sgr34"><span class="sgr1">B:</span></span>
+5×2 Matrix{Float64}:
+  0.0           0.0
+ -9.49411e-16  -1.0
+  1.0          -9.49411e-16
+  1.0           0.0
+ -0.0          -1.0
+<span class="sgr34"><span class="sgr1">C:</span></span>
+2×5 Matrix{Float64}:
+ 0.0  0.0  0.0  0.0  1.0
+ 0.0  0.0  0.0  1.0  0.0
+
+<span class="sgr34"><span class="sgr1">Eigenvalue Analysis</span></span>
+  -2.024743680893174 - 0.8240814719104308im
+  -2.024743680893174 + 0.8240814719104308im
+  -1.3991906945784371 + 0.0im
+  -4.0709382163428574e-14 + 0.0im
+  0.4486780563648227 + 0.0im
+<span class="sgr32">  ✓ A has zero mode</span></code></pre><p>Next we can generate the bode plots for</p><p class="math-container">\[G(s) = C \, \left(s\,M -A\right)^{-1}\,B\]</p><pre><code class="language-julia hljs">bode_plot(get_LTI(vm).G)</code></pre><img src="28a330c3.png" alt="Example block output"/><p>Also the slighly adapted Gs</p><p class="math-container">\[G_s(s) = s\cdot G(s) = s \cdot C \, \left(s\,M -A\right)^{-1}\,B\]</p><pre><code class="language-julia hljs">bode_plot(get_LTI(vm).Gs)</code></pre><img src="366c4a6d.png" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Home</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Friday 22 August 2025 10:34">Friday 22 August 2025</span>. Using Julia version 1.11.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
