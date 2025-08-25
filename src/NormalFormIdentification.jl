@@ -181,45 +181,50 @@ function get_LTI(vm::VertexModel, state=NetworkDynamics.get_defaults_or_inits_di
     (; M, A, B, C, G, S0=[real(S0), imag(S0)], Θ0=g(xvec), i0=idqvec, u0=g_inner(xvec), Gs, G_pinv, Gs_pinv)
 end
 
-function rotational_symmetry(vm::VertexModel; covariant=[])
+function rotational_symmetry(
+    vm::VertexModel,
+    state=NetworkDynamics.get_defaults_or_inits_dict(vm);
+    covariant=[]
+)
     _vm = copy(vm) # create a copy first
-    res = init_residual(_vm)
+    res = init_residual(_vm, state)
     if isnan(res) || res > 1e-6
         error("The system is not initialized in steady state, cannot perform rotational symmetry identification.")
     end
 
     residuals = Float64[]
     for αd in 1:360
+        _state = copy(state)
         local α = rad2deg(αd)
         D = [cos(α) -sin(α); sin(α) cos(α)]
 
         # input / output transformation
-        u = [get_initial_state(vm, :busbar₊u_r), get_initial_state(vm, :busbar₊u_i)]
-        i = [get_initial_state(vm, :busbar₊i_r), get_initial_state(vm, :busbar₊i_i)]
+        u = [state[:busbar₊u_r], state[:busbar₊u_i]]
+        i = [state[:busbar₊i_r], state[:busbar₊i_i]]
         unew = D * u
         inew = D * i
-        set_default!(_vm, :busbar₊u_r, unew[1])
-        set_default!(_vm, :busbar₊u_i, unew[2])
-        set_default!(_vm, :busbar₊i_r, inew[1])
-        set_default!(_vm, :busbar₊i_i, inew[2])
+        state[:busbar₊u_r] = unew[1]
+        state[:busbar₊u_i] = unew[2]
+        state[:busbar₊i_r] = inew[1]
+        state[:busbar₊i_i] = inew[2]
 
         # covariatn variable transformation
         for sym in covariant
             if sym isa NTuple{2,Symbol}
-                phasorlike = [get_initial_state(vm, sym[1]), get_initial_state(vm, sym[2])]
+                phasorlike = [state[sym[1]], state[sym[2]]]
                 phasorlike_new = D * phasorlike
-                set_default!(_vm, sym[1], phasorlike_new[1])
-                set_default!(_vm, sym[2], phasorlike_new[2])
+                state[sym[1]] = phasorlike_new[1]
+                state[sym[2]] = phasorlike_new[2]
             elseif sym isa Symbol
-                δlike = get_initial_state(vm, sym)
+                δlike = state[sym]
                 δlike_new = δlike + α
-                set_default!(_vm, sym, δlike_new)
+                state[sym] = δlike_new
             else
                 error()
             end
         end
 
-        res = init_residual(_vm)
+        res = init_residual(_vm, _state)
         push!(residuals, res)
         # printstyled("α = $(lpad(αd, 3))°: ", color=:blue)
         # printstyled(repr(res)*"\n")

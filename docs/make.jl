@@ -37,6 +37,7 @@ kwargs = (;
         "Home" => "index.md",
         "Tutorials" => [
             "Droop Identification" => "generated/droop_identification.md",
+            "IEEE 9-Bus Linearization" => "generated/ieee9bus.md",
         ]
     ],
     draft=false,

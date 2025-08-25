@@ -83,14 +83,21 @@ function nf_linearization(vm::VertexModel, state=NetworkDynamics.get_defaults_or
     Asym = [_matsymbol("A", i, j) for j in 1:xdim for i in 1:xdim]
     Bsym = [_matsymbol("B", i, j) for j in 1:2 for i in 1:xdim]
     Csym = [_matsymbol("C", i, j) for j in 1:xdim for i in 1:2]
-    S0sym = [:S0_i, :S0_r]
-    Θ0sym = [:Θ0_r, :Θ0_i]
+    S0sym = [:S₀_i, :S₀_r]
+    Θ0sym = [:Θ₀_r, :Θ₀_i]
     _psym = vcat(Asym, Bsym, Csym, S0sym, Θ0sym)
     _insym = [:busbar₊i_r, :busbar₊i_i]
     _outsym = [:busbar₊u_r, :busbar₊u_i]
 
-    _symdef = [s => (; guess=0.0, init=0.0) for s in _sym]
-    _psymdef = _psym .=> pdef
+    # _symdef = [s => (; guess=0.0, init=0.0) for s in _sym]
+    _symdef = _sym .=> 0.0
+    _psymdef = map(zip(_psym, pdef)) do (sym, def)
+        if sym == :Θ₀_i
+            sym => (; guess=def, init=def)
+        else
+            sym => def
+        end
+    end
     _insymdef = _insym .=> lti.i0
     _outsymdef = _outsym .=> lti.u0
     _obssym = [:busbar₊P, :busbar₊Q, :busbar₊u_mag, :busbar₊u_arg, :busbar₊i_mag, :busbar₊i_arg]
@@ -103,6 +110,8 @@ function nf_linearization(vm::VertexModel, state=NetworkDynamics.get_defaults_or
         mass_matrix=lti.M,
         obsf=NormalFormObsF(xdim), obssym=_obssym,
     )
+    initf = @initformula :Θ₀_i = atan(:busbar₊u_i, :busbar₊u_r)
+    set_initformula!(vm_lin, initf)
 
     if init_residual(vm_lin) > 1e-8
         @warn "The linearized model doese not appear to be at a steady state. That is worrisome!"
