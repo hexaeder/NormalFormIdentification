@@ -112,6 +112,7 @@ function nf_linearization(vm::VertexModel, state=NetworkDynamics.get_defaults_or
     )
     initf = @initformula :Θ₀_i = atan(:busbar₊u_i, :busbar₊u_r)
     set_initformula!(vm_lin, initf)
+    set_pfmodel!(vm_lin, powerflow_model(vm))
 
     if init_residual(vm_lin) > 1e-8
         @warn "The linearized model doese not appear to be at a steady state. That is worrisome!"
