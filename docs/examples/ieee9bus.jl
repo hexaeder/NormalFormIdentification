@@ -229,6 +229,7 @@ let
     fig
 end
 
+
 #=
 The plot displays three overlapping traces for each bus (same color per bus):
 - **Transparent solid line**: Original nonlinear model
@@ -335,3 +336,33 @@ Next, we benchmark the complete ODE solution process:
 #=
 The results here are... inconclusive. For this system there is no real benefit in linearizing.
 =#
+
+#=
+## Bonus: Inspection of Inernal States
+
+By the power of observables, we can still inspect "estimated" internal states wheras
+```math
+\mathbf{x}_{\mathrm{original}} \approx \mathbf{x}_0 + \delta \mathbf{x}
+```
+The results are significantly improved if the voltage explicitly appears in the state vector.
+In this case, the "correct" voltage is inserted in the state vector as a basis for
+the estimation of the other states/observables.
+=#
+let
+    fig = Figure(size=(600,800));
+    i=1
+
+    ax = Axis(fig[1, 1]; title="Rotor Angle", xlabel="Time [s]", ylabel="angel [rad]")
+    lines!(ax, sol; idxs=VIndex(i,:generator₊machine₊δ), color=Cycled(1), alpha=0.3)
+    lines!(ax, sol_lin; idxs=VIndex(i,:estim₊generator₊machine₊δ), color=Cycled(1), linestyle=:dash)
+
+    ax = Axis(fig[2, 1]; title="Transient Voltage d-axis", xlabel="Time [s]", ylabel="Voltage [pu]")
+    lines!(ax, sol; idxs=VIndex(i,:generator₊machine₊E′_d), color=Cycled(1), alpha=0.3)
+    lines!(ax, sol_lin; idxs=VIndex(i,:estim₊generator₊machine₊E′_d), color=Cycled(1), linestyle=:dash)
+
+    ax = Axis(fig[3, 1]; title="Transient Voltage q-axis", xlabel="Time [s]", ylabel="Voltage [pu]")
+    lines!(ax, sol; idxs=VIndex(i,:generator₊machine₊E′_q), color=Cycled(1), alpha=0.3)
+    lines!(ax, sol_lin; idxs=VIndex(i,:estim₊generator₊machine₊E′_q), color=Cycled(1), linestyle=:dash)
+
+    fig
+end

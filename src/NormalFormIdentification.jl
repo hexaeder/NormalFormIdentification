@@ -178,7 +178,7 @@ function get_LTI(vm::VertexModel, state=NetworkDynamics.get_defaults_or_inits_di
     G_pinv = s -> C * pinv(s*M - A) * B
     Gs_pinv = s -> s * C * pinv(s*M - A) * B
 
-    (; M, A, B, C, G, S0=[real(S0), imag(S0)], Θ0=g(xvec), i0=idqvec, u0=g_inner(xvec), Gs, G_pinv, Gs_pinv)
+    (; M, A, B, C, G, S0=[real(S0), imag(S0)], Θ0=g(xvec), i0=idqvec, u0=g_inner(xvec), x0=xvec, p0=pvec, Gs, G_pinv, Gs_pinv)
 end
 
 function rotational_symmetry(

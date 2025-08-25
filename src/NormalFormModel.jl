@@ -100,7 +100,62 @@ function nf_linearization(vm::VertexModel, state=NetworkDynamics.get_defaults_or
     end
     _insymdef = _insym .=> lti.i0
     _outsymdef = _outsym .=> lti.u0
-    _obssym = [:busbar₊P, :busbar₊Q, :busbar₊u_mag, :busbar₊u_arg, :busbar₊i_mag, :busbar₊i_arg]
+
+    busbase = PowerDynamics.BusBase(name=:test)
+    if length(equations(busbase)) != 6
+        @warn "The BusBase model has changed, please check the linearization
+               code to add missing busbar observables!"
+    end
+
+    # 1-6: P, Q, |u|, angle(u), |i|, angle(i)
+    # 7-x: estim x
+    # then: estim obs
+    obsf = let xdim=xdim,
+               obsf_orig = vm.obsf,
+               x0_orig=copy(lti.x0),
+               p_orig=copy(lti.p0),
+               obsdim=length(vm.obssym),
+               u_r_idx=findfirst(isequal(:busbar₊u_r), sym(vm)),
+               u_i_idx=findfirst(isequal(:busbar₊u_i), sym(vm))
+        (out, δx, isum, p, t) -> begin
+            busbar_range = 1:6
+            estim_x_range = (1:xdim) .+ busbar_range[end]
+            estim_obs_range = (1:obsdim) .+ estim_x_range[end]
+
+            # the first 6 entries are the busbar observables
+            uout = view(out, 1:2)
+            NormalForm(xdim)(uout, δx, p, t)
+            uc = Complex(uout[1], uout[2])
+            ic = Complex(isum[1], isum[2])
+            S = -1 * conj(ic) * uc # injector form
+
+            out[1] = real(S)
+            out[2] = imag(S)
+            out[3] = abs(uc)
+            out[4] = angle(uc)
+            out[5] = abs(ic)
+            out[6] = angle(ic)
+
+            # the next entries are the estimated "original" states
+            x_buf = view(out, estim_x_range)
+            x_buf .= x0_orig .+ δx
+
+            # hack: if u_r and u_i explicitly appears in the state vector, we can vastly increase estimation by fillin with actual voltage
+            if !isnothing(u_r_idx) && !isnothing(u_i_idx)
+                x_buf[u_r_idx] = real(uc)
+                x_buf[u_i_idx] = imag(uc)
+            end
+
+            # the last states are the estimated "original" observables
+            obs_buf = view(out, estim_obs_range)
+            obsf_orig(obs_buf, x_buf, isum, p_orig, t)
+            nothing # hide
+        end
+    end
+    prefix(s) = Symbol("estim₊", s)
+    busbar_obs = [:busbar₊P, :busbar₊Q, :busbar₊u_mag, :busbar₊u_arg, :busbar₊i_mag, :busbar₊i_arg]
+    _obssym = vcat(busbar_obs, prefix.(sym(vm)), prefix.(obssym(vm)))
+
 
     vm_lin = VertexModel(;
         f=NormalForm(xdim), g=NormalForm(xdim),
@@ -108,7 +163,7 @@ function nf_linearization(vm::VertexModel, state=NetworkDynamics.get_defaults_or
         insym=_insymdef, outsym=_outsymdef,
         ff=NoFeedForward(),
         mass_matrix=lti.M,
-        obsf=NormalFormObsF(xdim), obssym=_obssym,
+        obsf=obsf, obssym=_obssym,
     )
     initf = @initformula :Θ₀_i = atan(:busbar₊u_i, :busbar₊u_r)
     set_initformula!(vm_lin, initf)
