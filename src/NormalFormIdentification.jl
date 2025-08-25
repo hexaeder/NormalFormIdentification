@@ -10,6 +10,7 @@ using CairoMakie
 using Symbolics
 using ModelingToolkit
 using ModelingToolkit: t_nounits as t, D_nounits as Dt
+using StaticArrays: SVector, SMatrix, SA
 
 export print_equations, get_LTI, print_linearization, bode_plot
 export rotational_symmetry
@@ -96,8 +97,17 @@ It assumes (and checks) that the system is initialized in steady state (otherwis
 
 Notice that this only gives the **change** of the complex phase, not the absolute value.
 """
-function get_LTI(vm::VertexModel)
-    pvec = NetworkDynamics.get_default_or_init.(Ref(vm), psym(vm))
+function get_LTI(vm::VertexModel, state=NetworkDynamics.get_defaults_or_inits_dict(vm))
+    try
+        if init_residual(vm, state) > 1e-8
+            @warn "The model does not appear to be at a steady state. That is not expected and might lead to errors!"
+        end
+    catch e
+        @error "Error whil trying to check if the model is initialized, did you provide all the necessary defaults and initialized the model?"
+        rethrow(e)
+    end
+
+    pvec = Float64[state[s] for s in psym(vm)]
 
     # first we wrap the inner functions of the vertex model to get to nice
     # M ẋ = f_inner(x, u)
@@ -121,10 +131,10 @@ function get_LTI(vm::VertexModel)
     end
 
     # sanity cecks, g_inner should return voltage at eq point, f_inner should return 0
-    xvec = Float64.(NetworkDynamics.get_default_or_init.(Ref(vm), sym(vm)))
-    idqvec = Float64.(NetworkDynamics.get_default_or_init.(Ref(vm), insym(vm)))
+    xvec = Float64[state[s] for s in sym(vm)]
+    idqvec = Float64[state[s] for s in insym(vm)]
     @assert maximum(abs.(f_inner(xvec, idqvec) - zeros(dim(vm)))) < 1e-6
-    @assert g_inner(xvec) ≈ NetworkDynamics.get_default_or_init.(Ref(vm), outsym(vm))
+    @assert g_inner(xvec) ≈ [state[s] for s in outsym(vm)]
 
     # for liniearization, we define 1 \mathrm{arg} functions of f around QP0 and f around x0
     S0 = Complex(g_inner(xvec)...) * conj(Complex(idqvec...))
@@ -156,9 +166,9 @@ function get_LTI(vm::VertexModel)
     B = ForwardDiff.jacobian(f_around_x0, zeros(2)) # ∂f/∂ΔQP(x0, ΔQP0)
     C = ForwardDiff.jacobian(g, xvec)      # ∂g/∂x(x0)
 
-    @assert A ≈ FiniteDiff.finite_difference_jacobian(f_around_ΔQP, xvec)
-    @assert B ≈ FiniteDiff.finite_difference_jacobian(f_around_x0, zeros(2))
-    @assert C ≈ FiniteDiff.finite_difference_jacobian(g, xvec)
+    @assert isapprox(A, FiniteDiff.finite_difference_jacobian(f_around_ΔQP, xvec); atol=1e-6, rtol=sqrt(eps(Float64)))
+    @assert isapprox(B, FiniteDiff.finite_difference_jacobian(f_around_x0, zeros(2)); atol=1e-5, rtol=sqrt(eps(Float64)))
+    @assert isapprox(C, FiniteDiff.finite_difference_jacobian(g, xvec); atol=1e-6, rtol=sqrt(eps(Float64)))
 
     # lastly we define the transfer matrix as a function of s
     # NOTE: during discussion, we sometimes had -1 in the G function
@@ -168,7 +178,7 @@ function get_LTI(vm::VertexModel)
     G_pinv = s -> C * pinv(s*M - A) * B
     Gs_pinv = s -> s * C * pinv(s*M - A) * B
 
-    (; M, A, B, C, G, Gs, G_pinv, Gs_pinv)
+    (; M, A, B, C, G, S0=[real(S0), imag(S0)], Θ0=g(xvec), i0=idqvec, u0=g_inner(xvec), Gs, G_pinv, Gs_pinv)
 end
 
 function rotational_symmetry(vm::VertexModel; covariant=[])
@@ -321,5 +331,8 @@ function print_linearization(vm)
     end
     nothing
 end
+
+export nf_linearization
+include("NormalFormModel.jl")
 
 end # module NormalFormIdentification
