@@ -16,19 +16,18 @@ NetworkDynamics.fftype(::NormalForm{DIM,FF}) where {DIM,FF} = FF()
 _vecsymbol(x, i) = Symbol(x, NetworkDynamics.subscript(i))
 _matsymbol(x, i, j) = Symbol(x, NetworkDynamics.subscript(i),"₋", NetworkDynamics.subscript(j))
 
-_shift(r::UnitRange, offset) = (offset + r.start):(offset + r.stop)
 Arange(nf::NormalForm) = 1:dim(nf)^2
-Brange(nf::NormalForm) = @inbounds _shift(1:2*dim(nf), Arange(nf)[end])
-Crange(nf::NormalForm) = @inbounds _shift(1:dim(nf)*2, Brange(nf)[end])
+Brange(nf::NormalForm) = @inbounds (1:2*dim(nf)) .+ Arange(nf)[end]
+Crange(nf::NormalForm) = @inbounds (1:dim(nf)*2) .+ Brange(nf)[end]
 function Drange(nf::NormalForm)
     if hasff(nf)
-        @inbounds _shift(1:4, Crange(nf)[end])
+        @inbounds (1:4) .+ Crange(nf)[end]
     else
-        @inbounds _shift(1:-1, Crange(nf)[end])
+        @inbounds (1:-1) .+ Crange(nf)[end]
     end
 end
-S0range(nf::NormalForm) = @inbounds _shift(1:2, Drange(nf)[end])
-Θ0range(nf::NormalForm) = @inbounds _shift(1:2, S0range(nf)[end])
+S0range(nf::NormalForm) = @inbounds (1:2) .+ Drange(nf)[end]
+Θ0range(nf::NormalForm) = @inbounds (1:2) .+ S0range(nf)[end]
 
 # dim from vec length would e sqrt(length) - 2
 Aview(nf::NormalForm{DIM},  vec) where {DIM} = reshape(view(vec, Arange(nf)), DIM, DIM)
@@ -38,19 +37,12 @@ Dview(nf::NormalForm{DIM},  vec) where {DIM} = hasff(nf) ? reshape(view(vec, Dra
 S0view(nf::NormalForm{DIM}, vec) where {DIM} = view(vec, S0range(nf))
 Θ0view(nf::NormalForm{DIM}, vec) where {DIM} = view(vec, Θ0range(nf))
 
-function (nf::NormalForm{DIM})(dx_full, x_full, isum, p, t) where {DIM}
-    # x mai contain outputs if has ff
-    x = hasff(nf) ? view(x_full, 1:DIM) : x_full
-
+# f for nf without D matrix
+function (nf::NormalForm{DIM,<:NoFeedForward})(dx, x, isum, p, t) where {DIM}
     # calculate voltage for x
     C = SMatrix{2, DIM}(Cview(nf, p))
     Θ0 = SVector{2}(Θ0view(nf, p))
     Θ = muladd(C, x, Θ0)
-
-    if hasff(nf)
-        D = SMatrix{2, 2}(Dview(nf, p))
-        Θ = muladd(D, isum, Θ)
-    end
 
     uc = exp(Complex(Θ[1], Θ[2]))
     # get complex current
@@ -64,15 +56,42 @@ function (nf::NormalForm{DIM})(dx_full, x_full, isum, p, t) where {DIM}
     A = SMatrix{DIM, DIM}(Aview(nf, p))
     B = SMatrix{DIM, 2}(Bview(nf, p))
     _dx = muladd(A, x, B * δQP)
-    if hasff(nf)
-        view(dx_full, 1:DIM) .= _dx
-        dx_full[end-1] = x_full[end-1] - real(uc)
-        dx_full[end]   = x_full[end]   - imag(uc)
-    else
-        dx_full .= _dx
-    end
+    dx .= _dx
     nothing
 end
+# f for nf with D matrix
+function (nf::NormalForm{DIM, <:FeedForward})(dx_full, x_full, isum, p, t) where {DIM}
+    # x mai contain outputs if has ff
+    x = view(x_full, 1:DIM)
+    # for the input, we get the complex current from  x_full
+    uc = Complex(x_full[end-1], x_full[end])
+    # get complex current
+    ic = Complex(isum[1], isum[2])
+    # calculate δS input
+    S = conj(ic) * uc
+    S0 = SVector{2}(S0view(nf, p))
+    δQP = SA[imag(S) - S0[2], real(S) - S0[1]]
+
+    # calculate dx output
+    A = SMatrix{DIM, DIM}(Aview(nf, p))
+    B = SMatrix{DIM, 2}(Bview(nf, p))
+    _dx = muladd(A, x, B * δQP)
+
+    view(dx_full, 1:DIM) .= _dx
+
+    # we calculate u again via matrices fro the output constraint
+    C = SMatrix{2, DIM}(Cview(nf, p))
+    D = SMatrix{2, 2}(Dview(nf, p))
+    Θ0 = SVector{2}(Θ0view(nf, p))
+    _Θ = muladd(C, x, Θ0)
+    Θ = muladd(D, δQP, _Θ)
+    uc_lti = exp(Complex(Θ[1], Θ[2]))
+
+    dx_full[end-1] = real(uc) - real(uc_lti)
+    dx_full[end]   = imag(uc) - imag(uc_lti)
+    nothing
+end
+# ge for nf without D matrix
 function (nf::NormalForm{DIM,<:NoFeedForward})(out, x, p, t) where {DIM}
     # calculate voltage for x
     C = SMatrix{2, DIM}(Cview(nf, p))
@@ -83,18 +102,20 @@ function (nf::NormalForm{DIM,<:NoFeedForward})(out, x, p, t) where {DIM}
     out[2] = imag(uc)
     nothing
 end
-function (::NormalForm{DIM,<:FeedForward})(out, x_full) where {DIM}
-    out .= x_full[end-1:end]
-    nothing
-end
 
-function nf_linearization(vm::VertexModel, state=NetworkDynamics.get_defaults_or_inits_dict(vm))
+function nf_linearization(
+    vm::VertexModel,
+    state=NetworkDynamics.get_defaults_or_inits_dict(vm);
+    transform_constraints=false,
+)
     lti = get_LTI(vm, state)
-    lti = reorder_constraints(lti)
-    # lti = solve_constraints(lti)
+    if transform_constraints
+        lti = reorder_constraints(lti)
+        lti = solve_constraints(lti)
+    end
 
     nf = NormalForm(lti)
-    xdim = dim(nf)
+    nfdim = dim(nf)
     pdef = Float64[-1 for _ in 1:pdim(nf)]
     Aview(nf, pdef) .= lti.A
     Bview(nf, pdef) .= lti.B
@@ -105,13 +126,13 @@ function nf_linearization(vm::VertexModel, state=NetworkDynamics.get_defaults_or
     S0view(nf, pdef) .= lti.S0
     Θ0view(nf, pdef) .= lti.Θ0
 
-    _sym = [_vecsymbol("δx", i) for i in 1:xdim]
+    _sym = [_vecsymbol("δx", i) for i in 1:nfdim]
     if hasff(nf)
         append!(_sym, [:busbar₊u_r, :busbar₊u_i])
     end
-    Asym = [_matsymbol("A", i, j) for j in 1:xdim for i in 1:xdim]
-    Bsym = [_matsymbol("B", i, j) for j in 1:2 for i in 1:xdim]
-    Csym = [_matsymbol("C", i, j) for j in 1:xdim for i in 1:2]
+    Asym = [_matsymbol("A", i, j) for j in 1:nfdim for i in 1:nfdim]
+    Bsym = [_matsymbol("B", i, j) for j in 1:2 for i in 1:nfdim]
+    Csym = [_matsymbol("C", i, j) for j in 1:nfdim for i in 1:2]
     Dsym = if hasff(nf)
         [_matsymbol("D", i, j) for j in 1:2 for i in 1:2]
     else
@@ -144,7 +165,7 @@ function nf_linearization(vm::VertexModel, state=NetworkDynamics.get_defaults_or
     # 1-6: P, Q, |u|, angle(u), |i|, angle(i)
     # 7-x: estim x
     # then: estim obs
-    obsf = let xdim=xdim,
+    obsf = let nfdim=nfdim,
                obsf_orig = vm.obsf,
                x0_orig=copy(lti.x0),
                p_orig=copy(lti.p0),
@@ -153,9 +174,9 @@ function nf_linearization(vm::VertexModel, state=NetworkDynamics.get_defaults_or
                u_i_idx=findfirst(isequal(:busbar₊u_i), sym(vm)),
                Tf=lti.Tf
         (out, δz_full, isum, p, t) -> begin
-            δz = hasff(nf) ? view(δz_full, 1:xdim) : δz_full
+            δz = hasff(nf) ? view(δz_full, 1:nfdim) : δz_full
             busbar_range = 1:6
-            estim_x_range = (1:xdim) .+ busbar_range[end]
+            estim_x_range = (1:length(x0_orig)) .+ busbar_range[end]
             estim_obs_range = (1:obsdim) .+ estim_x_range[end]
 
             # the first 6 entries are the busbar observables
@@ -205,11 +226,19 @@ function nf_linearization(vm::VertexModel, state=NetworkDynamics.get_defaults_or
         lti.M
     end
 
+    # when nf has ff, we handled it to be a pure state map by now
+    if hasff(nf)
+        _g = StateMask(nfdim + 1:nfdim + 2)
+        _ff = fftype(_g)
+    else
+        _g = nf
+        _ff = NoFeedForward()
+    end
     vm_lin = VertexModel(;
-        f=nf, g=nf,
+        f=nf, g=_g,
         sym=_symdef, psym=_psymdef,
         insym=_insymdef, outsym=_outsymdef,
-        ff=fftype(nf),
+        ff=_ff,
         mass_matrix=M,
         obsf=obsf, obssym=_obssym,
     )
@@ -278,21 +307,17 @@ function solve_constraints(lti)
     # get matrices for reduced model
     M_r = Diagonal(ones(r))
     @assert M[1:r,1:r] == M_r
-    A_r = A11 - A12*inv(A22)*A21
-    B_r = B1 - A12*inv(A22)*B2
-    C_r = C1 - C2*inv(A22)*A21
-    D_r = D - C2*inv(A22)*B2
-
-    # TODO: continue here!
-    # i don;t know yet how to get T and Q to go from z to x (old)
-    # is this even possible? because i think it also depends on u
+    A_r = A11 - A12 * (A22 \ A21)
+    B_r = B1 - A12 * (A22 \ B2)
+    C_r = C1 - C2 * (A22 \ A21)
+    D_r = D  - C2 * (A22 \ B2)
 
     _Tf = (z, u) -> begin
-        z_constraint = -inv(A22)*A21*z -inv(A22)*B2*u
-        vcat(z, z_constraint)
+        z_constraint = -(A22 \ A21)*z - (A22 \ B2)*u
+        z_full = vcat(z, z_constraint)
+        lti.Tf(z_full, u)
     end
 
     (; M=M_r, A=A_r, B=B_r, C=C_r, D=D_r, Tf=_Tf,
        S0=lti.S0, Θ0=lti.Θ0, i0=lti.i0, u0=lti.u0, x0=lti.x0, p0=lti.p0)
-
 end

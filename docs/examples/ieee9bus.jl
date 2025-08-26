@@ -305,38 +305,6 @@ full nonlinear solution. This suggests that linearizing only the components with
 dynamic complexity can provide an optimal balance between computational efficiency and accuracy.
 =#
 
-
-#=
-## Computational Performance Analysis
-
-Finally, let's quantify the computational benefits of linearization by benchmarking
-the different model variants. We'll measure both the single function evaluation time
-and the complete ODE solve performance.
-=#
-
-dx = zeros(dim(nw)); x = copy(uflat(s0)); p = copy(pflat(s0));
-@benchmark $nw($dx, $x, $p, 0.0) seconds=1
-#-
-
-dx = zeros(dim(nw_lin)); x = copy(uflat(s0_lin)); p = copy(pflat(s0_lin));
-@benchmark $nw_lin($dx, $x, $p, 0.0) seconds=1
-#-
-dx = zeros(dim(nw_lin2)); x = copy(uflat(s0_lin2)); p = copy(pflat(s0_lin2));
-@benchmark $nw_lin2($dx, $x, $p, 0.0) seconds=1
-
-#=
-Next, we benchmark the complete ODE solution process:
-=#
-@benchmark solve($prob, Rodas5P()) seconds=1
-#-
-@benchmark solve($prob_lin, Rodas5P()) seconds=1
-#-
-@benchmark solve($prob_lin2, Rodas5P()) seconds=1
-
-#=
-The results here are... inconclusive. For this system there is no real benefit in linearizing.
-=#
-
 #=
 ## Bonus: Inspection of Inernal States
 
@@ -366,3 +334,153 @@ let
 
     fig
 end
+
+
+#=
+## Computational Performance Analysis
+```@raw html
+<details>
+<summary>Click to expand!</summary>
+```
+
+Finally, let's quantify the computational benefits of linearization by benchmarking
+the different model variants. We'll measure both the single function evaluation time
+and the complete ODE solve performance.
+=#
+
+dx = zeros(dim(nw)); x = copy(uflat(s0)); p = copy(pflat(s0));
+@benchmark $nw($dx, $x, $p, 0.0) seconds=1
+#-
+
+dx = zeros(dim(nw_lin)); x = copy(uflat(s0_lin)); p = copy(pflat(s0_lin));
+@benchmark $nw_lin($dx, $x, $p, 0.0) seconds=1
+#-
+dx = zeros(dim(nw_lin2)); x = copy(uflat(s0_lin2)); p = copy(pflat(s0_lin2));
+@benchmark $nw_lin2($dx, $x, $p, 0.0) seconds=1
+
+#=
+Next, we benchmark the complete ODE solution process:
+=#
+@benchmark solve($prob, Rodas5P()) seconds=1
+#-
+@benchmark solve($prob_lin, Rodas5P()) seconds=1
+#-
+@benchmark solve($prob_lin2, Rodas5P()) seconds=1
+
+#=
+The results here are... inconclusive. For this system there is no real benefit in linearizing.
+
+```@raw html
+</details>
+```
+=#
+
+#=
+## Resolve constaints
+```math
+\begin{aligned}
+  \mathbf{M}\frac{d\delta\mathbf{x}}{dt} &= \mathbf{A}\,\delta \mathbf{x} + \mathbf{B}\,\delta\mathbf{S}\\
+  \mathbf{\Theta} &= \mathbf{\Theta}_0 + \mathbf{C}\,\delta \mathbf{x}
+\end{aligned}
+```
+If we have such a system with a non-singular mass matrix $\mathbf{M}$, we can also resolve the algebraic constraints.
+This leads to a non-zero $\mathbf{\bar D}$ matrix in the output equation (i.e. a Feed Forward)
+```math
+\begin{aligned}
+  \frac{d\delta\mathbf{z}}{dt} &= \mathbf{\bar A}\,\delta \mathbf{z} + \mathbf{\bar B}\,\delta\mathbf{S}\\
+  \mathbf{\Theta} &= \mathbf{\Theta}_0 + \mathbf{\bar C}\,\delta \mathbf{z} + \mathbf{\bar D}\,\delta\mathbf{S}
+\end{aligned}
+```
+
+This feed foward is problematic, because we cannot explicitly calculate $\delta\mathbf{S}$ anymore!
+```math
+\begin{aligned}
+  \delta\mathbf{S} &= \mathbf{i}^*\left(\exp\left(\mathbf{\Theta}_0 + \mathbf{\bar C}\,\delta \mathbf{x} + \mathbf{\bar D}\,\delta\mathbf{S}\right)\right) - \mathbf{S}_0\\
+  \frac{d\mathbf{x}}{dt} &= \mathbf{\bar A}\,\delta \mathbf{x} + \mathbf{\bar B}\,\delta\mathbf{S}\\
+  \mathbf{u} &= \exp\left(\mathbf{\Theta}_0 + \mathbf{C}\,\delta \mathbf{x} + \mathbf{\bar D}\,\delta\mathbf{S}\right)
+\end{aligned}
+```
+
+We can cirumvent this problem by introducing 2 real contraints for the imaginary and real part of the voltage again:
+```math
+\begin{aligned}
+  \delta\mathbf{S} &= \mathbf{i}^*\mathbf{u} - \mathbf{S}_0\\
+  \frac{d\mathbf{z}}{dt} &= \mathbf{\bar A}\,\delta \mathbf{z} + \mathbf{\bar B}\,\delta\mathbf{S}\\
+  0 &=\mathbf{u} - \exp\left(\mathbf{\Theta}_0 + \mathbf{C}\,\delta \mathbf{z} + \mathbf{\bar D}\,\delta\mathbf{S}\right)
+\end{aligned}
+```
+With this definition, our VertexModel looks like this:
+```math
+\begin{aligned}
+\begin{bmatrix}
+1 &\\
+&\ddots\\
+&&1\\
+&&&0
+\end{bmatrix}\frac{d\mathbf{s}}{dt}&=
+\begin{bmatrix}
+\mathbf{\bar A}\,\delta \mathbf{z} + \mathbf{\bar B}\,\delta\mathbf{S}\\
+\mathbf{u} - \exp\left(\mathbf{\Theta}_0 + \mathbf{C}\,\delta \mathbf{z} + \mathbf{\bar D}\,\delta\mathbf{S}\right)
+\end{bmatrix}\quad\text{where}\quad\delta\mathbf{S} = \mathbf{i}^*\mathbf{u} - \mathbf{S}_0\quad\text{and}\quad\mathbf{s}=
+\begin{bmatrix}\mathbf{\bar z}\\\mathbf{u}\end{bmatrix}
+\\
+\mathbf{u} &=\begin{bmatrix}
+0 &\\
+&\ddots\\
+&&0\\
+&&&1
+\end{bmatrix}\mathbf{s}
+\end{aligned}
+```
+
+We can apply this to a single generator and compare the results with the full nonlinear model.
+=#
+GENERATOR = 3
+vms_lin_noc = map(1:9) do i
+    if i == GENERATOR
+        nonlinear_model = nw[VIndex(i)]
+        comp_state = get_component_state(s0, VIndex(i))
+        nf_linearization(nonlinear_model, comp_state; transform_constraints=true)
+    else
+        copy(nw[VIndex(i)])
+    end
+end;
+nw_lin_noc = Network(nw; vertexm=vms_lin_noc)
+s0_lin_noc = initialize_from_pf(nw_lin_noc; pfs=pfs);
+prob_lin_noc = ODEProblem(nw_lin_noc, uflat(s0_lin_noc), (0.0, 10.0), copy(pflat(s0_lin_noc)), callback=get_callbacks(nw_lin_noc))
+sol_lin_noc = solve(prob_lin_noc, Rodas5P());
+
+let
+    fig = Figure(size=(600,800));
+
+    i = GENERATOR
+
+    ax = Axis(fig[1, 1]; title="Active Power", xlabel="Time [s]", ylabel="Power [pu]")
+    lines!(ax, sol; idxs=VIndex(i,:busbar₊P), label="Bus $i", color=Cycled(i), alpha=0.3)
+    lines!(ax, sol_lin_noc; idxs=VIndex(i,:busbar₊P), label="Bus $i", color=Cycled(i), linestyle=:dash)
+
+    ax = Axis(fig[2, 1]; title="Voltage Magnitude", xlabel="Time [s]", ylabel="Voltage [pu]")
+    lines!(ax, sol; idxs=VIndex(i,:busbar₊u_mag), label="Bus $i", color=Cycled(i), alpha=0.3)
+    lines!(ax, sol_lin_noc; idxs=VIndex(i,:busbar₊u_mag), label="Bus $i", color=Cycled(i), linestyle=:dash)
+
+    ax = Axis(fig[3, 1]; title="Transient Voltage q-axis", xlabel="Time [s]", ylabel="Voltage [pu]")
+    lines!(ax, sol; idxs=VIndex(i,:generator₊machine₊E′_q), color=Cycled(i), alpha=0.3)
+    lines!(ax, sol_lin; idxs=VIndex(i,:estim₊generator₊machine₊E′_q), color=Cycled(i), linestyle=:dash)
+    fig
+end
+
+#=
+Note that also the `:estim` states survive the transformations.
+
+For this example, reducing the constraints is not to interesting, because we had 3 befor and now we have 2.
+=#
+@assert dim(nw[VIndex(GENERATOR)]) == 14 #hide
+@assert dim(nw_lin_noc[VIndex(GENERATOR)]) == 13 #hide
+println("Original Generator Dimension =   ", dim(nw[VIndex(GENERATOR)]))
+println("Linearized Generator Dimension = ", dim(nw_lin_noc[VIndex(GENERATOR)]))
+nothing #hide
+#=
+However it does make a difference when it comes do balanced truncation.
+=#
+
+
