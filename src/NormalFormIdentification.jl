@@ -179,8 +179,7 @@ function get_LTI(vm::VertexModel, state=NetworkDynamics.get_defaults_or_inits_di
     Gs_pinv = s -> s * C * pinv(s*M - A) * B
 
     (; M, A, B, C, D=zeros(2,2),
-       Q=Diagonal(ones(length(xvec))),
-       T=Diagonal(ones(length(xvec))),
+       Tf=(x, u) -> x,
        S0=[real(S0), imag(S0)],
        Θ0=g(xvec),
        i0=idqvec,

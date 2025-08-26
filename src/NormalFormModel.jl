@@ -11,6 +11,7 @@ S0range(dim) = @inbounds _shift(1:2, Crange(dim)[end])
 Θ0range(dim) = @inbounds _shift(1:2, S0range(dim)[end])
 nf_pdim(dim) = Θ0range(dim)[end]
 
+# dim from vec length would e sqrt(length) - 2
 Aview(vec, dim) = reshape(view(vec, Arange(dim)), dim, dim)
 Bview(vec, dim) = reshape(view(vec, Brange(dim)), dim, 2)
 Cview(vec, dim) = reshape(view(vec, Crange(dim)), 2, dim)
@@ -121,7 +122,7 @@ function nf_linearization(vm::VertexModel, state=NetworkDynamics.get_defaults_or
                obsdim=length(vm.obssym),
                u_r_idx=findfirst(isequal(:busbar₊u_r), sym(vm)),
                u_i_idx=findfirst(isequal(:busbar₊u_i), sym(vm)),
-               T=copy(lti.T)
+               Tf=lti.Tf
         (out, δz, isum, p, t) -> begin
             busbar_range = 1:6
             estim_x_range = (1:xdim) .+ busbar_range[end]
@@ -143,8 +144,9 @@ function nf_linearization(vm::VertexModel, state=NetworkDynamics.get_defaults_or
 
             # the next entries are the estimated "original" states
             x_buf = view(out, estim_x_range)
-            x_buf .= x0_orig
-            mul!(x_buf, T, δz, 1.0, 1.0) # x += T*δz
+            S0 = S0view(p, xdim)
+            δQP = SA[imag(S) - S0[2], real(S) - S0[1]]
+            x_buf .= x0_orig .+ Tf(δz, δQP)
 
             # hack: if u_r and u_i explicitly appears in the state vector, we can vastly increase estimation by fillin with actual voltage
             if !isnothing(u_r_idx) && !isnothing(u_i_idx)
@@ -204,9 +206,8 @@ function reorder_constraints(lti; tol=1e-10)
     _C = C * T
     _D = D
 
-    _T = T*lti.T
-    _Q = Q*lti.Q
+    _Tf = (z, u) -> lti.Tf(T * z, u)
 
-    (; M=_M, A=_A, B=_B, C=_C, D=_D, T=_T, Q=_Q,
+    (; M=_M, A=_A, B=_B, C=_C, D=_D, Tf=_Tf,
        S0=lti.S0, Θ0=lti.Θ0, i0=lti.i0, u0=lti.u0, x0=lti.x0, p0=lti.p0)
 end
