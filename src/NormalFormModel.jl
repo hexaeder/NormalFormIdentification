@@ -1,3 +1,5 @@
+using LinearAlgebra
+
 _vecsymbol(x, i) = Symbol(x, NetworkDynamics.subscript(i))
 _matsymbol(x, i, j) = Symbol(x, NetworkDynamics.subscript(i),"₋", NetworkDynamics.subscript(j))
 
@@ -71,6 +73,8 @@ end
 
 function nf_linearization(vm::VertexModel, state=NetworkDynamics.get_defaults_or_inits_dict(vm))
     lti = get_LTI(vm, state)
+    lti = reorder_constraints(lti)
+
     xdim = size(lti.A)[1]
     pdef = Float64[-1 for _ in 1:nf_pdim(xdim)]
     Aview(pdef, xdim) .= lti.A
@@ -116,15 +120,16 @@ function nf_linearization(vm::VertexModel, state=NetworkDynamics.get_defaults_or
                p_orig=copy(lti.p0),
                obsdim=length(vm.obssym),
                u_r_idx=findfirst(isequal(:busbar₊u_r), sym(vm)),
-               u_i_idx=findfirst(isequal(:busbar₊u_i), sym(vm))
-        (out, δx, isum, p, t) -> begin
+               u_i_idx=findfirst(isequal(:busbar₊u_i), sym(vm)),
+               T=copy(lti.T)
+        (out, δz, isum, p, t) -> begin
             busbar_range = 1:6
             estim_x_range = (1:xdim) .+ busbar_range[end]
             estim_obs_range = (1:obsdim) .+ estim_x_range[end]
 
             # the first 6 entries are the busbar observables
             uout = view(out, 1:2)
-            NormalForm(xdim)(uout, δx, p, t)
+            NormalForm(xdim)(uout, δz, p, t)
             uc = Complex(uout[1], uout[2])
             ic = Complex(isum[1], isum[2])
             S = -1 * conj(ic) * uc # injector form
@@ -138,7 +143,8 @@ function nf_linearization(vm::VertexModel, state=NetworkDynamics.get_defaults_or
 
             # the next entries are the estimated "original" states
             x_buf = view(out, estim_x_range)
-            x_buf .= x0_orig .+ δx
+            x_buf .= x0_orig
+            mul!(x_buf, T, δz, 1.0, 1.0) # x += T*δz
 
             # hack: if u_r and u_i explicitly appears in the state vector, we can vastly increase estimation by fillin with actual voltage
             if !isnothing(u_r_idx) && !isnothing(u_i_idx)
@@ -168,9 +174,39 @@ function nf_linearization(vm::VertexModel, state=NetworkDynamics.get_defaults_or
     initf = @initformula :Θ₀_i = atan(:busbar₊u_i, :busbar₊u_r)
     set_initformula!(vm_lin, initf)
     set_pfmodel!(vm_lin, powerflow_model(vm))
+    set_metadata!(vm_lin, :lti, lti)
 
     if init_residual(vm_lin) > 1e-8
         @warn "The linearized model doese not appear to be at a steady state. That is worrisome!"
     end
     vm_lin
+end
+
+function reorder_constraints(lti; tol=1e-10)
+    (; M, A, B, C, D) = lti
+
+    # SVD of M
+    U, s, V = svd(Matrix(M))
+    r = count(>(tol), s)   # numerical rank
+
+    # Left transform rescales the first r singular directions
+    Σr_inv = Diagonal(1.0 ./ s[1:r])
+    Q = [Σr_inv * U[:,1:r]'; U[:,r+1:end]']   # size n×n
+    T = V                                     # right transform
+
+    # Transformed system
+    _M = Q * M * T
+    @assert isdiag(_M)
+    _M = Diagonal{Int}(_M)
+
+    _A = Q * A * T
+    _B = Q * B
+    _C = C * T
+    _D = D
+
+    _T = T*lti.T
+    _Q = Q*lti.Q
+
+    (; M=_M, A=_A, B=_B, C=_C, D=_D, T=_T, Q=_Q,
+       S0=lti.S0, Θ0=lti.Θ0, i0=lti.i0, u0=lti.u0, x0=lti.x0, p0=lti.p0)
 end

@@ -92,8 +92,8 @@ This function retunrs the linearized descriptor system of the given `VertexModel
 
 It assumes (and checks) that the system is initialized in steady state (otherwise the linearization leads to an affine system).
 
-    M ẋ = A δx + B δQP
-      y = C δx         = [δ|V|, δarg(V)]
+   M δẋ = A δx + B δQP
+     δΘ = C δx         = [δ|V|, δarg(V)]
 
 Notice that this only gives the **change** of the complex phase, not the absolute value.
 """
@@ -178,7 +178,16 @@ function get_LTI(vm::VertexModel, state=NetworkDynamics.get_defaults_or_inits_di
     G_pinv = s -> C * pinv(s*M - A) * B
     Gs_pinv = s -> s * C * pinv(s*M - A) * B
 
-    (; M, A, B, C, G, S0=[real(S0), imag(S0)], Θ0=g(xvec), i0=idqvec, u0=g_inner(xvec), x0=xvec, p0=pvec, Gs, G_pinv, Gs_pinv)
+    (; M, A, B, C, D=zeros(2,2),
+       Q=Diagonal(ones(length(xvec))),
+       T=Diagonal(ones(length(xvec))),
+       S0=[real(S0), imag(S0)],
+       Θ0=g(xvec),
+       i0=idqvec,
+       u0=g_inner(xvec),
+       x0=xvec,
+       p0=pvec,
+       G, Gs, G_pinv, Gs_pinv)
 end
 
 function rotational_symmetry(
