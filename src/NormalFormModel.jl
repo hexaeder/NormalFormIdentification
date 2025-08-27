@@ -1,5 +1,6 @@
 using LinearAlgebra
 using NetworkDynamics: fftype, hasff
+using ControlSystems: ControlSystems
 
 struct NormalForm{DIM,FF}
     NormalForm(dim,ff) = new{dim,typeof(ff)}()
@@ -107,11 +108,18 @@ function nf_linearization(
     vm::VertexModel,
     state=NetworkDynamics.get_defaults_or_inits_dict(vm);
     transform_constraints=false,
+    reduction = 0,
+    residualization = nothing,
 )
     lti = get_LTI(vm, state)
     if transform_constraints
         lti = reorder_constraints(lti)
         lti = solve_constraints(lti)
+    end
+    if reduction > 0
+        isnothing(residualization) && error("Must specify residualization true/false when specifying order")
+        lti = separate_integrator(lti)
+        lti = balanced_truncation(lti; reduction, residualization)
     end
 
     nf = NormalForm(lti)
@@ -307,10 +315,10 @@ function solve_constraints(lti)
     # get matrices for reduced model
     M_r = Diagonal(ones(r))
     @assert M[1:r,1:r] == M_r
-    A_r = A11 - A12 * (A22 \ A21)
-    B_r = B1 - A12 * (A22 \ B2)
-    C_r = C1 - C2 * (A22 \ A21)
-    D_r = D  - C2 * (A22 \ B2)
+    A_r = A11 - A12 * (A22 \ A21) |> cleanup_zeros
+    B_r = B1 - A12 * (A22 \ B2)   |> cleanup_zeros
+    C_r = C1 - C2 * (A22 \ A21)   |> cleanup_zeros
+    D_r = D  - C2 * (A22 \ B2)    |> cleanup_zeros
 
     _Tf = (z, u) -> begin
         z_constraint = -(A22 \ A21)*z - (A22 \ B2)*u
@@ -320,4 +328,144 @@ function solve_constraints(lti)
 
     (; M=M_r, A=A_r, B=B_r, C=C_r, D=D_r, Tf=_Tf,
        S0=lti.S0, Θ0=lti.Θ0, i0=lti.i0, u0=lti.u0, x0=lti.x0, p0=lti.p0)
+end
+
+function separate_integrator(lti)
+    (; M, A, B, C, D) = lti
+    @assert lti.M == Diagonal(ones(size(A)[1])) "Expected mass matrix to be identity"
+
+    # shur decomposition: A = Z*T*Z' , i.e. T = Z'*A*Z is upper triangular
+    F = schur(A)
+    λs = F.values
+    λ0_idxs = findall(λ -> abs(λ) < 1e-10, λs)
+    if length(λ0_idxs) == 0
+        return lti
+    elseif length(λ0_idxs) > 1
+        @warn "Separate integrator foudn more than one zero eigenvalue!"
+    end
+    select = ones(Bool, length(λs))
+    select[λ0_idxs] .= false
+
+    Ford = ordschur(F, select)
+    Z = Ford.Z
+    A_t = Z' * A * Z |> cleanup_zeros
+    B_t = Z' * B     |> cleanup_zeros
+    C_t = C * Z      |> cleanup_zeros
+
+    _Tf = (z, u) -> begin
+        x = Z * z
+        lti.Tf(x, u)
+    end
+    (; A=A_t, B=B_t, C=C_t, Tf=_Tf,
+       D=lti.D, M=lti.M, S0=lti.S0, Θ0=lti.Θ0, i0=lti.i0, u0=lti.u0, x0=lti.x0, p0=lti.p0)
+end
+
+function balanced_truncation(lti; reduction, residualization)
+    (; A, B, C, D) = lti
+    Adim = size(A,1)
+    @assert lti.M == Diagonal(ones(Adim)) "Mass matrix must be identity for truncation"
+
+    # split system in stable and unstable part by integrator
+    integrator_idx = findall(iszero, eachrow(A))
+    @assert Set(integrator_idx) == Set(Adim-length(integrator_idx)+1:Adim) "Expected integrator to be in the last rows!"
+
+    srange = 1:Adim-length(integrator_idx)
+    mrange = srange[end] + 1:Adim
+    Ass = A[srange, srange]
+    Asm = A[srange, mrange]
+    Bs = B[srange, :]
+    Bm = B[mrange, :]
+    Cs = C[:, srange]
+    Cm = C[:, mrange]
+
+    sdim = length(srange)
+    mdim = length(mrange)
+
+    if reduction > sdim
+        throw(ArgumentError("The stable subsystem has dimension $sdim, cannot reduce by $(reduction)!"))
+    end
+
+    # lets build the matrices for the system to reduce
+    reddim = sdim-reduction
+    A_tored = Ass
+    B_tored = [Bs Asm]
+    C_tored = Cs
+    D_tored = [D Cm]
+    ss = ControlSystems.StateSpace(A_tored, B_tored, C_tored, D_tored)
+    ss_bal, G, _ = ControlSystems.baltrunc(ss; residual=residualization, n=reddim)
+    _, _, T = ControlSystems.balreal(ss)
+    Ar = ss_bal.A
+    Br = ss_bal.B
+    Cr = ss_bal.C
+    Dr = ss_bal.D
+
+    # identification of different matrix subblocks
+    indim = size(C,1)
+    Br_δS = Br[:, 1:indim]
+    Br_δx = Br[:, indim+1:end]
+    Dr_δS = Dr[:, 1:indim]
+    Dr_δx = Dr[:, indim+1:end]
+
+    # finally build the new system matricies
+    Anew = [Ar Br_δx
+            zeros(mdim,reddim) zeros(mdim,mdim)]
+    Bnew = vcat(Br_δS, Bm)
+    Cnew = [Cr Dr_δx]
+    Dnew = Dr_δS
+
+    if residualization
+        balA = T * A_tored / T
+        A21 = balA[reddim+1:end, 1:reddim]
+        A22 = balA[reddim+1:end, reddim+1:end]
+        B2  = (T*B_tored)[reddim+1:end, :]
+
+        _Tf = (zr_xm, u) -> begin
+            # xr_xm = rand(reddim+mdim)
+            # u = rand(indim)
+            zr = @views zr_xm[1:reddim]
+            xm = @views zr_xm[reddim+1:end]
+            zr_removed = -(A22 \ A21)*zr - (A22 \ B2)*vcat(u, xm)
+            z = vcat(zr, zr_removed)
+            xs = T \ z
+
+            # to get the full state back we need to stack  all parts
+            xs_xm = vcat(xs, xm)
+            lti.Tf(xs_xm, u)
+        end
+    else
+        _Tf = (zr_xm, u) -> begin
+            zr = @views zr_xm[1:reddim]
+            xm = @views zr_xm[reddim+1:end]
+            zr_removed = zeros(reduction)
+            z = vcat(zr, zr_removed)
+            xs = T \ z
+            xs_xm = vcat(xs, xm)
+            lti.Tf(xs_xm, u)
+        end
+    end
+
+
+    (; A=Anew, B=Bnew, C=Cnew, D=Dnew, Tf=_Tf, M=Diagonal(ones(reddim+mdim)),
+       S0=lti.S0, Θ0=lti.Θ0, i0=lti.i0, u0=lti.u0, x0=lti.x0, p0=lti.p0)
+end
+
+"""
+    cleanup_zeros(M; atol=nothing)
+
+Replace small entries of `M` by 0.
+
+- If `atol` is given, it's used as absolute tolerance.
+- If not, a relative tolerance is computed as
+
+    tol = eps(eltype(M)) * norm(M) * size(M,1)
+
+This follows LAPACK-style scaling.
+"""
+function cleanup_zeros(M; atol=nothing)
+    if atol === nothing
+        tol = eps(eltype(M)) * norm(M) * size(M,1)
+    else
+        tol = atol
+    end
+    map(x -> abs.(x) .< tol ? zero(eltype(M)) : x, M)
 end

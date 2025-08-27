@@ -44,7 +44,8 @@ end
 
 function full_serving()
     @info "Start server..."
-    servetask = @async serve(;dir=BUILD_DIR, port=8000)
+    port=8000
+    servetask = @async serve(;dir=BUILD_DIR, port)
     errormonitor(servetask)
 
     run = true
