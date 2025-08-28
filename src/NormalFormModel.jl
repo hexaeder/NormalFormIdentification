@@ -392,8 +392,9 @@ function balanced_truncation(lti; reduction, residualization)
     C_tored = Cs
     D_tored = [D Cm]
     ss = ControlSystems.StateSpace(A_tored, B_tored, C_tored, D_tored)
-    ss_bal, G, _ = ControlSystems.baltrunc(ss; residual=residualization, n=reddim)
-    _, _, T = ControlSystems.balreal(ss)
+    ss_bal, _, _ = ControlSystems.baltrunc(ss; residual=residualization, n=reddim)
+    # the above only gives reduced σ and T, however we need the full so we balance again
+    _, σ, T = ControlSystems.balreal(ss)
     Ar = ss_bal.A
     Br = ss_bal.B
     Cr = ss_bal.C
@@ -446,7 +447,7 @@ function balanced_truncation(lti; reduction, residualization)
 
 
     (; A=Anew, B=Bnew, C=Cnew, D=Dnew, Tf=_Tf, M=Diagonal(ones(reddim+mdim)),
-       S0=lti.S0, Θ0=lti.Θ0, i0=lti.i0, u0=lti.u0, x0=lti.x0, p0=lti.p0)
+        S0=lti.S0, Θ0=lti.Θ0, i0=lti.i0, u0=lti.u0, x0=lti.x0, p0=lti.p0, singularvalues=σ)
 end
 
 """
