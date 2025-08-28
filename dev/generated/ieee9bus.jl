@@ -678,4 +678,27 @@ let
     fig
 end
 
+# What one often does is to inspect the hankel singulare values to determine which states to keep.
+# ```@raw html
+# <script> (function() {const thisScript = document.currentScript; setTimeout(function() {let current = thisScript.nextElementSibling; while (current) {const code = current.querySelector('code'); if (code) {const details = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent = 'Show code'; const parent = code.parentNode; parent.parentNode.insertBefore(details, parent); details.appendChild(summary); details.appendChild(parent); break;} current = current.nextElementSibling;}}, 100);})(); </script>
+# ```
+
+let
+    fig = Figure()
+    ax = Axis(fig[1,1]; ylabel="Hankel Singular Value",
+              xreversed=false,
+              xticks=1:100,
+              yscale=log10,
+              xlabel=L"$\sigma_i$ Index")
+    for i in 1:3
+        vm = extract_nw(sol_bt[(first(REDUCTIONS), true)])[VIndex(i)]
+        σ = vm.metadata[:lti].singularvalues
+        scatter!(ax, σ; label="Generator $i", color=Cycled(i), markersize=8)
+    end
+    axislegend(ax)
+    fig
+end
+
+# Doesn't help alot 🤷
+
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
