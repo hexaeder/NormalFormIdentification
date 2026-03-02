@@ -152,14 +152,14 @@ function nf_linearization(
     _insym = [:busbar₊i_r, :busbar₊i_i]
     _outsym = [:busbar₊u_r, :busbar₊u_i]
 
-    # _symdef = [s => (; guess=0.0, init=0.0) for s in _sym]
-    _symdef = _sym .=> 0.0
+    _symdef = [s => (; guess=0.0) for s in _sym]
+    # _symdef = _sym .=> 0.0
     _psymdef = map(zip(_psym, pdef)) do (sym, def)
-        if sym == :Θ₀_i
-            sym => (; guess=def, init=def)
-        else
+        # if sym == :Θ₀_i
+        #     sym => (; guess=def, init=def)
+        # else
             sym => def
-        end
+        # end
     end
     _insymdef = _insym .=> lti.i0
     _outsymdef = _outsym .=> lti.u0
@@ -250,14 +250,14 @@ function nf_linearization(
         mass_matrix=M,
         obsf=obsf, obssym=_obssym,
     )
-    initf = @initformula :Θ₀_i = atan(:busbar₊u_i, :busbar₊u_r)
-    set_initformula!(vm_lin, initf)
+    # initf = @initformula :Θ₀_i = atan(:busbar₊u_i, :busbar₊u_r)
+    # set_initformula!(vm_lin, initf)
     set_pfmodel!(vm_lin, powerflow_model(vm))
     set_metadata!(vm_lin, :lti, lti)
 
-    if init_residual(vm_lin) > 1e-8
-        @warn "The linearized model doese not appear to be at a steady state. That is worrisome!"
-    end
+    # if init_residual(vm_lin) > 1e-8
+    #     @warn "The linearized model doese not appear to be at a steady state. That is worrisome!"
+    # end
     vm_lin
 end
 

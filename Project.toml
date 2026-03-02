@@ -3,6 +3,9 @@ uuid = "feeee282-1c02-4c77-8f08-bd221c3f2f52"
 authors = ["Hans Würfel <git@wuerfel.io>"]
 version = "0.1.0"
 
+[workspace]
+projects = ["docs"]
+
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 ControlSystems = "a6e380b2-a6ca-5380-bf3e-84a91bcd477e"
@@ -22,5 +25,6 @@ FiniteDiff = "2.27.0"
 ForwardDiff = "0.10.38"
 LinearAlgebra = "1"
 ModelingToolkit = "10"
+NetworkDynamics = "0.10.4"
 StaticArrays = "1.9.14"
 Symbolics = "6.49.0"

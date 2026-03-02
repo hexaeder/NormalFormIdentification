@@ -14,6 +14,9 @@ using StaticArrays: SVector, SMatrix, SA
 
 export print_equations, get_LTI, print_linearization, bode_plot
 export rotational_symmetry
+export HammersteinWienerTransformation, HammersteinWienerModel, NormalFormTransformation
+export HWFunction
+export hammerstein_wiener_linearization, hw_linearization
 
 """
     reduced_jacobian_eigenvalues(system)
@@ -347,5 +350,6 @@ end
 
 export nf_linearization
 include("NormalFormModel.jl")
+include("HammersteinWienerLinearization.jl")
 
 end # module NormalFormIdentification

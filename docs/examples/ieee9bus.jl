@@ -75,20 +75,22 @@ only the initial phase $\mathbf{\Theta}_{0,i}$ needs to be updated—making it t
 To demonstrate and validate this rotational invariance property, we use the IEEE 9-bus test system.
 =#
 using PowerDynamics
+using PowerDynamics.Library
 using NormalFormIdentification
 using OrdinaryDiffEqRosenbrock
 using OrdinaryDiffEqNonlinearSolve
 using Graphs
 using CairoMakie
 using BenchmarkTools
+using ModelingToolkit
 
 #=
 ## Setting up the IEEE 9-Bus Test System
 
 First, we load the IEEE 9-Bus system from PowerDynamics and compute the steady-state powerflow:
 =#
-include(joinpath(pkgdir(PowerDynamics), "test", "testsystems.jl"))
-nw = TestSystems.load_ieee9bus()
+include(joinpath(pkgdir(PowerDynamics), "test", "PowerDynamicsTesting", "testsystems.jl"))
+nw = load_ieee9bus()
 
 pfnw = powerflow_model(nw)
 pf0 = NWState(pfnw)
@@ -134,10 +136,10 @@ s0 = initialize_from_pf(nw; pfs=pfs)
 s0_rot = initialize_from_pf(nw; pfs=pfs_rot)
 
 ## simulation of both rotated and non-rotated case
-prob = ODEProblem(nw, uflat(s0), (0.0, 10.0), copy(pflat(s0)), callback=get_callbacks(nw))
+prob = ODEProblem(nw, s0, (0.0, 10.0))
 sol = solve(prob, Rodas5P());
 
-prob_rot = ODEProblem(nw, uflat(s0_rot), (0.0, 10.0), copy(pflat(s0_rot)), callback=get_callbacks(nw))
+prob_rot = ODEProblem(nw, s0_rot, (0.0, 10.0))
 sol_rot = solve(prob_rot, Rodas5P());
 
 ## Verify that the solutions differ by exactly the phase shift
