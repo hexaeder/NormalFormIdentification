@@ -16,7 +16,7 @@ export print_equations, get_LTI, print_linearization, bode_plot
 export rotational_symmetry
 export HammersteinWienerTransformation, HammersteinWienerModel, NormalFormTransformation
 export HWFunction
-export hammerstein_wiener_linearization, hw_linearization
+export hammerstein_wiener_linearization, hw_linearization, hw_vertex_model
 
 """
     reduced_jacobian_eigenvalues(system)
