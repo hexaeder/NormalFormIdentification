@@ -550,12 +550,101 @@ and `VertexModel(::HammersteinWienerModel)`.
 
 All extra arguments are forwarded to `hammerstein_wiener_linearization`.
 """
-function hw_linearization(vm::VertexModel, hwt::HammersteinWienerTransformation, args...; separate_phase=false)
+function hw_linearization(vm::VertexModel, hwt::HammersteinWienerTransformation, args...;
+                          separate_phase=false, separate_complex_frequency=false)
     hwm = hammerstein_wiener_linearization(vm, hwt, args...)
-    if separate_phase
+    if separate_complex_frequency
+        hwm = NormalFormIdentification.separate_complex_frequency(hwm)
+    elseif separate_phase
         hwm = NormalFormIdentification.separate_phase(hwm)
     end
     VertexModel(hwm)
+end
+
+export separate_complex_frequency
+"""
+    separate_complex_frequency(hwm::HammersteinWienerModel; tol=1e-10)
+
+Apply a single state transformation that makes both output structures explicit simultaneously.
+
+Only applicable to models using [`NormalFormTransformation`](@ref).
+
+After transformation:
+- `C = [I₂  0…0]` — both outputs directly read the first two states
+  - `C[1, :] = [1 0 … 0]` — first state is the voltage magnitude output `δln|V|`
+  - `C[2, :] = [0 1 … 0]` — second state is the voltage angle output `δarg(V)`
+- `A[:, 2] = 0` — the phase state (column 2) does not feed back into any dynamics
+
+The transformation `Z` is constructed so that:
+- `Z[:, 2]` is the null-space vector of `A` (the integrator/phase direction),
+  scaled such that `C[2,:] ⋅ Z[:,2] = 1`
+- `Z[:, 1]` is the minimum-norm vector with `C[1,:] ⋅ Z[:,1] = 1`
+  and `C[2,:] ⋅ Z[:,1] = 0`
+- `Z[:, 3:end]` is an orthonormal basis for `ker(C)` (the (N-2)-dimensional
+  subspace invisible to both outputs)
+
+This requires one additional structural condition beyond [`separate_phase`](@ref):
+the null vector of `A` must also be orthogonal to `C[1,:]`, i.e., the phase state
+must not contribute to the voltage magnitude output.
+"""
+function separate_complex_frequency(hwm::HammersteinWienerModel; tol=1e-10)
+    @assert hwm.hwt === NormalFormTransformation "separate_complex_frequency only makes sense for NormalFormTransformation"
+
+    nds = hwm.lti
+    A = nds.A
+    C = nds.C
+    N = size(A, 1)
+
+    c1 = C[1, :]
+    c2 = C[2, :]
+
+    # find null vector of A (the integrator/phase direction)
+    F = svd(A)
+    null_idx = findlast(s -> s < tol, F.S)
+    isnothing(null_idx) && error("A has no zero singular value (no integrator found)")
+    nnull = count(s -> s < tol, F.S)
+    nnull > 1 && @warn "A has $nnull near-zero singular values, expected exactly 1"
+    v = F.Vt[null_idx, :]
+
+    α2 = dot(c2, v)
+    abs(α2) < tol && error("Phase output (C[2,:]) is orthogonal to null(A) — integrator not observable through output 2")
+    v = v / α2  # scale so C[2,:] ⋅ v = 1
+
+    α1 = dot(c1, v)
+    abs(α1) > tol && error("C[1,:] ⋅ null(A) = $α1 ≠ 0: voltage magnitude output depends on the phase state; cannot form C = [I₂ | 0]")
+
+    # minimum-norm vector w with C[1,:] ⋅ w = 1 and C[2,:] ⋅ w = 0
+    # w = Cᵀ (C Cᵀ)⁻¹ e₁
+    CCt = C * C'
+    w = C' * (CCt \ [1.0, 0.0])
+
+    # orthonormal basis for ker(C): last N-2 columns of Q from QR of Cᵀ
+    Qfull = qr(C').Q * Matrix(I, N, N)
+    W_null = Qfull[:, 3:end]   # N × (N-2), each column ⊥ to both c1 and c2
+
+    # assemble: state 1 = magnitude output, state 2 = phase output, rest = ker(C)
+    Z = hcat(w, v, W_null)
+
+    A_new = Z \ A * Z  |> cleanup_zeros
+    B_new = Z \ nds.B  |> cleanup_zeros
+    C_new = C * Z      |> cleanup_zeros
+
+    Tf_old = hwm.metadata[:Tf]
+    Tf_new = (z, u) -> Tf_old(Z * z, u)
+
+    nds_new = NetworkDescriptorSystem(;
+        M = nds.M,
+        A = A_new,
+        B = B_new,
+        C = C_new,
+        D = nds.D,
+        insym = nds.insym,
+        outsym = nds.outsym,
+    )
+
+    meta_new = copy(hwm.metadata)
+    meta_new[:Tf] = Tf_new
+    HammersteinWienerModel(nds_new, hwm.hwt, meta_new)
 end
 
 export separate_phase
@@ -774,7 +863,7 @@ function hw_vertex_model(A, B, C, D=nothing;
     busbar_syms  = [:busbar₊P, :busbar₊Q, :busbar₊u_mag, :busbar₊u_arg, :busbar₊i_mag, :busbar₊i_arg]
     _obssym = vcat(lti_u_syms, lti_y_syms, busbar_syms)
 
-    VertexModel(;
+    vm = VertexModel(;
         f=hwf, g=_g,
         sym=_symdef, psym=_psymdef,
         insym=_insymdef, outsym=_outsymdef,
